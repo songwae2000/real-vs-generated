@@ -12,7 +12,7 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
-from src import cities, manifest, stats, tickets
+from src import cities, manifest, sla, stats, tickets
 from src.austin_prior import PREDICTED_RANGE as AUSTIN_HUMAN_BAND
 from src.austin_prior import prior_slow_probability as austin_human
 from src.austin_prior_llm import PREDICTED_RANGE as AUSTIN_LLM_BAND
@@ -355,6 +355,13 @@ def main():
     print(f"  {'NY rules carried':<18}{'Chicago':<14}{ny_threshold:>10.1f}h"
           f"{auc:>7.3f}{'':>18}{top:>9.3f}{matched_share:>11.0%}")
 
+    targets = sla.target_hours()
+    ny_train_f, ny_train_y, ny_test_f, ny_test_y, _ = loaded["New York"]
+    ny_top = ceiling_from_columns(ny_train_f, ny_train_y, ny_test_f, ny_test_y)
+    sla_auc = roc_auc_score(ny_test_y, sla.score(ny_test_f, targets))
+    print(f"  {'published target':<18}{'New York':<14}{'':>11}{sla_auc:>7.3f}"
+          f"{'':>18}{ny_top:>9.3f}{recovered(sla_auc, ny_top):>11.0%}")
+
     matched = np.mean([abs(nyc_prior(f["category"], f["department"]) - 0.5) > 1e-9
                        for f in loaded["Chicago"][2]])
     print("\n  The two cities' medians differ 22-fold: 5.4h against 118.0h. The")
@@ -365,6 +372,16 @@ def main():
     print(f"  reach {auc:.3f}, or {matched_share:.0%} of what Chicago's columns support.")
     print(f"  They still fire on only {matched:.1%} of Chicago rows, so what is left")
     print("  is largely string overlap between two taxonomies.")
+
+    print(f"\n  The published target is New York's own service level agreement,")
+    print(f"  {len(targets)} complaint types covering "
+          f"{sla.coverage(ny_test_f, targets):.0%} of test volume, ranked")
+    print("  slowest first. It needs no reasoning and no client records, and it")
+    print("  very nearly matches rules written with the real rates in hand. I")
+    print("  could not find an equivalent published dataset for Austin or San")
+    print("  Francisco, the two cities carrying the blind result, so this")
+    print("  narrows the worry that a language model is reading published")
+    print("  performance material rather than reasoning, without settling it.")
 
     heading("TABLE 8: fidelity ladder, trained on generated New York records")
     train_f, train_y, test_f, test_y, _ = loaded["New York"]

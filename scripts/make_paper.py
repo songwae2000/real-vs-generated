@@ -34,7 +34,7 @@ PREAMBLE = r"""\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage[hidelinks]{hyperref}
 \titlespacing*{\section}{0pt}{0.75em}{0.3em}
 \titlespacing*{\subsection}{0pt}{0.6em}{0.2em}
-\setlength{\parskip}{0.28em}
+\setlength{\parskip}{0.2em}
 \setlength{\parindent}{0pt}
 \title{\vspace{-1.0em}\textbf{%s}\vspace{-0.4em}}
 \author{\textbf{Cajetan Songwae} \\
@@ -133,6 +133,10 @@ def convert(markdown):
             out.append(r"\subsection*{" + escape(line[4:]) + "}")
         elif line.startswith("## "):
             out.append(r"\section*{" + escape(line[3:]) + "}")
+            # a reference list is set smaller than the body it supports, which
+            # is both the convention and what keeps this one off a fifth page
+            if line[3:].strip().lower() == "references":
+                out.append(r"\scriptsize")
         elif line.startswith("    ") and line.strip():
             block = []
             while i < len(lines) and (lines[i].startswith("    ") or not lines[i].strip()):
