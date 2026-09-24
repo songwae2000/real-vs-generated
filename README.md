@@ -46,7 +46,7 @@ draft of this work had one and the result turned out to be partly about him.
 - `src/tickets.py` loads any of the four feeds into one shape.
 - `src/generators.py` is the fidelity ladder: marginal, pairwise, joint.
 - `src/stats.py` is bootstrap intervals and the information ceiling.
-- `scripts/calibrate.py`, `scripts/check_paper.py`, `scripts/make_paper.py`.
+- `scripts/check_paper.py` and `scripts/make_paper.py`.
 - `HYPOTHESIS.md` is the hypothesis as fixed before the first experiment ran,
   including the three ways it could fail. One of them happened.
 
