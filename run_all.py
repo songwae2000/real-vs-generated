@@ -136,7 +136,8 @@ def main():
 
         rules = austin_llm if city is cities.AUSTIN else sf_llm
         verdicts = prior_by_category(rules, test_f)
-        p_auc, p_lo, p_hi = stats.permutation_interval(verdicts, cats, test_y)
+        p_auc, p_lo, p_hi, pval = stats.permutation_test(verdicts, cats,
+                                                         test_y, auc)
 
         for label, a, lo, hi in (
                 ("blind rules, independent", auc, None, None),
@@ -145,13 +146,19 @@ def main():
             span = f"[{lo:.3f}, {hi:.3f}]" if lo is not None else ""
             print(f"  {city.name:<16}{label:<26}{a:>7.3f}{span:>18}"
                   f"{recovered(a, top):>11.0%}")
+        print(f"  {'':<16}permutation test of H0: p {'<' if pval <= 1/2001 else '='} "
+              f"{max(pval, 1/2001):.4f}  "
+              f"({int(round(pval * 2001)) - 1} of 2,000 shuffles reached "
+              f"{auc:.3f})")
         print()
 
+    print("  H0: the rules carry no information about which category runs slow.")
+    print("  Shuffling verdicts across categories draws from that null directly,")
+    print("  holding the taxonomy, the row counts and the exact multiset of")
+    print("  verdicts, and breaking only which category got which verdict.")
     print("  Frequency alone uses only the row counts the blind pull supplied,")
     print("  scored rarer-is-slower. Choosing that direction is one bit the")
     print("  catalogue did not give, so the baseline is if anything generous.")
-    print("  Shuffling holds the taxonomy, the row counts and the exact multiset")
-    print("  of verdicts, and destroys only which category got which verdict.")
 
     heading("TABLE 3: the author effect, as a paired difference")
     print(f"  {'city':<16}{'independent minus human':>24}{'by ticket':>20}"

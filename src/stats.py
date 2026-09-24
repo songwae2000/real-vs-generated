@@ -112,14 +112,20 @@ def auc_difference_clustered(y_true, scores_a, scores_b, groups,
     return point, lo, hi
 
 
-def permutation_interval(values_by_group, groups, y_true, draws=CLUSTER_RESAMPLES):
-    """What the same rule set scores once its verdicts are shuffled.
+def permutation_test(values_by_group, groups, y_true, observed,
+                     draws=CLUSTER_RESAMPLES):
+    """Tests H0: the rules carry no information about which category is slow.
 
     Holds everything structural: the number of categories, how many rows sit in
     each, and the exact multiset of scores the rules hand out. Only the pairing
-    of verdict to category is destroyed. Whatever this reaches is available
-    from partitioning a taxonomy at all, with no domain reasoning in it, so it
-    is the baseline the headline number has to clear.
+    of verdict to category is destroyed, so shuffling draws directly from the
+    distribution of AUCs available under H0. Whatever that reaches is available
+    from partitioning a taxonomy at all, with no domain reasoning in it.
+
+    Returns the null mean, its 95% range, and a one-sided p-value: the share of
+    shuffles reaching the observed AUC or better. The +1 in both terms counts
+    the observed arrangement itself, which keeps the p-value from ever being
+    zero on a finite number of draws.
     """
     y = np.asarray(y_true)
     g = np.asarray(groups)
@@ -127,14 +133,16 @@ def permutation_interval(values_by_group, groups, y_true, draws=CLUSTER_RESAMPLE
     values = np.array([values_by_group[k] for k in keys], dtype=float)
     rng = np.random.default_rng(SEED)
 
-    boot = []
+    null = []
     for _ in range(draws):
         shuffled = dict(zip(keys, rng.permutation(values)))
         scores = np.array([shuffled[k] for k in g], dtype=float)
-        boot.append(roc_auc_score(y, scores))
+        null.append(roc_auc_score(y, scores))
 
-    lo, hi = np.percentile(boot, [2.5, 97.5])
-    return float(np.mean(boot)), lo, hi
+    null = np.asarray(null)
+    lo, hi = np.percentile(null, [2.5, 97.5])
+    p = (1 + int(np.sum(null >= observed))) / (1 + len(null))
+    return float(np.mean(null)), lo, hi, p
 
 
 def versus_chance(lo, hi):
