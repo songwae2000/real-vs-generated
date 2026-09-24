@@ -1,8 +1,11 @@
 # What a domain prior can and cannot replace
 
-Every figure below is printed by `python run_all.py`. Reproducing the paper is
-one command against four public feeds, with no key, no account and no cost. See
-the closing section.
+Code, data pipeline and pre-registration history:
+github.com/songwae2000/real-vs-generated
+
+Every figure below is printed by `python run_all.py` in that repository.
+Reproducing the paper is one command against four public feeds, with no key, no
+account and no cost. See the closing section.
 
 ## Question
 
@@ -197,16 +200,18 @@ effect this paper measures.
 
 ## Reproducing this
 
-    python run_all.py
+    git clone https://github.com/songwae2000/real-vs-generated
+    cd real-vs-generated && python run_all.py
 
 Four public 311 feeds, no key, no account, no cost, numpy and scikit-learn the
-only dependencies. The first run downloads about 60MB and takes a few minutes.
-It prints the six tables above, in order.
+only dependencies. The first run downloads about 60MB. It prints every table
+above, in order.
 
 Two runs on the same data are byte-identical, since every random draw is
-seeded. `scripts/check_paper.py` walks every table cell here and fails if a
-number appears that the run did not print, which exists because two figures
-once reached a draft without being computed. The feeds are live, so
+seeded. `scripts/check_paper.py` walks every table cell in the markdown source
+this document is generated from and fails if a number appears that the run did
+not print. It exists because two figures once reached a draft without being
+computed. The feeds are live, so
 `data/MANIFEST.json` records the row count and hash of each file these figures
 came from and the run reports any disagreement before printing. A reviewer
 whose numbers differ can tell whether the data moved or the code did.
