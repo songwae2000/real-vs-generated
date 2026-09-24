@@ -22,7 +22,7 @@ PREAMBLE = r"""\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage[T1]{fontenc}
 \usepackage[british]{babel}
 \usepackage[margin=1.5cm]{geometry}
-\setlength{\columnsep}{0.8cm}
+\setlength{\columnsep}{0.6cm}
 \setcounter{topnumber}{3}
 \setcounter{totalnumber}{4}
 \renewcommand{\topfraction}{0.9}
@@ -133,6 +133,10 @@ def convert(markdown):
             out.append(r"\subsection*{" + escape(line[4:]) + "}")
         elif line.startswith("## "):
             out.append(r"\section*{" + escape(line[3:]) + "}")
+            # one step down for the reference list, which is conventional and
+            # is what holds the paper to four pages
+            if line[3:].strip().lower() == "references":
+                out.append(r"\small")
         elif line.startswith("    ") and line.strip():
             block = []
             while i < len(lines) and (lines[i].startswith("    ") or not lines[i].strip()):

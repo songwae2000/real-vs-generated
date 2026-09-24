@@ -227,12 +227,61 @@ def main():
               f"{len({f['category'] for f in te_f}):>4} /{eff:>4.1f}")
         print()
 
-    print("  In San Francisco the blind model prior beats a conditional fitted")
-    print("  on the real data using the category column. Rules written without")
-    print("  seeing an outcome beat a model that saw every outcome, given the")
-    print("  same column. The effective cluster count is what the category")
-    print("  bootstrap is really working with, and it is far below the count of")
-    print("  categories, so those intervals are descriptive and not tests.")
+    print("  The category-only row is not a fair comparator for the rules, which")
+    print("  read the department too. Like for like, against the two-column")
+    print("  conditional, the fitted model wins in both cities:")
+    for city, rules in ((cities.AUSTIN, austin_llm), (cities.SF, sf_llm)):
+        tr_f, tr_y, te_f, te_y, _ = loaded[city.name]
+        cats = categories_of(te_f)
+        cat_only = stats.conditional_lookup(tr_f, tr_y, te_f, ("category",))
+        both = ceiling_from_columns(tr_f, tr_y, te_f, te_y)
+        arm = score_prior(rules, te_f)
+        gap = both - roc_auc_score(te_y, arm)
+        d, lo, hi = stats.auc_difference_clustered(te_y, arm, cat_only, cats)
+        print(f"    {city.name:<16}two-column conditional beats the rules by "
+              f"{gap:+.3f}")
+        print(f"    {'':<16}rules minus category-only {d:+.4f} "
+              f"[{lo:+.3f}, {hi:+.3f}] by category")
+    print("\n  The effective cluster count is what the category bootstrap is")
+    print("  really working with, and it is far below the number of categories,")
+    print("  so those intervals are descriptive and not tests.")
+
+    heading("TABLE 4c: is a prior constant within a category?")
+    print("  The category bootstrap assumes it is. A prior also reads the")
+    print("  department, so it holds only where a category has one owner.")
+    print(f"  {'city':<16}{'rules':<10}{'multi-valued':>14}{'of rows':>10}")
+    for city, pair in ((cities.AUSTIN, (("mine", austin_human), ("the model", austin_llm))),
+                       (cities.SF, (("mine", sf_human), ("the model", sf_llm)))):
+        _, _, te_f, _, _ = loaded[city.name]
+        for who, prior in pair:
+            by, rows = {}, {}
+            for f in te_f:
+                by.setdefault(f["category"], set()).add(
+                    prior(f["category"], f["department"]))
+                rows[f["category"]] = rows.get(f["category"], 0) + 1
+            multi = [c for c, v in by.items() if len(v) > 1]
+            share = sum(rows[c] for c in multi) / len(te_f)
+            print(f"  {city.name:<16}{who:<10}{f'{len(multi)} of {len(by)}':>14}"
+                  f"{share:>9.1%}")
+    print("\n  It holds throughout Austin and fails for most of San Francisco,")
+    print("  which is where the headline sits. The clustered interval is still")
+    print("  the better of the two units, but it is an approximation.")
+
+    heading("TABLE 4d: the three Austin categories named before the model wrote")
+    print("  Commit 4400226 evaluated my own Austin rules and named these three")
+    print("  with their measured rates. The model's rules came twelve hours on.")
+    train_f, train_y, test_f, test_y, _ = loaded["Austin"]
+    named = ("Compost", "Signal - Maintenance", "Vehicle Abatement Report")
+    print(f"  {'category':<38}{'n':>6}{'slow':>7}{'mine':>7}{'model':>7}")
+    for needle in named:
+        rows = [(f, y) for f, y in zip(test_f, test_y) if needle.lower() in f["category"].lower()]
+        if not rows:
+            continue
+        cat = rows[0][0]["category"]
+        slow = np.mean([y for _, y in rows])
+        h = np.mean([austin_human(f["category"], f["department"]) for f, _ in rows])
+        m = np.mean([austin_llm(f["category"], f["department"]) for f, _ in rows])
+        print(f"  {cat:<38}{len(rows):>6}{slow:>6.0%}{h:>7.2f}{m:>7.2f}")
 
     heading("TABLE 5: removing the highest-volume categories, both cities")
     for city, prior_h, prior_m, drop_n in ((cities.AUSTIN, austin_human, austin_llm, None),

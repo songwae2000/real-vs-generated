@@ -1,5 +1,16 @@
 # What a domain prior can and cannot replace
 
+Can hand-written rules stand in for a client's operational records when
+generating enterprise data? On 311 tickets from four cities, blind rules clear a
+structural null in San Francisco (p 0.0015) and not in Austin (p 0.110), and a
+conditional fitted on the real data beats them in both. Two cheaper things do
+most of the work: category volume alone scores 0.672 against my own rules' 0.676,
+and a city's published service target scores 79% of the achievable margin with no
+reasoning and no records at all. What survives is a warning rather than a
+substitute. If a taxonomy plus a published target carries most of the signal, an
+agent benchmark built on generated tickets is testing something much weaker than
+it looks.
+
 Companies selling generated enterprise data build it from a description of a
 business rather than anyone's real records: an org chart, a list of the work, and
 hand-written rules for how that work behaves. A client who cannot share their
@@ -30,13 +41,12 @@ that as given rather than as something to show, and the fidelity ladder below is
 here only because it makes the point on the same data as everything else.
 
 The nearer literature is language models as priors over tabular problems, and
-this design is a small instance of it. Knauer et al. induce a decision tree from
-the target and the column names alone, with no rows and no labels [6], which is
-the move my model-written rules make, and TabLLM shows column names carry useful
-zero-shot signal before any label [7]. AutoElicit elicits a prior from a model
-and scores it against real data by marginal likelihood, choosing between priors
-by Bayes factor [8]. That does not depend on a test split, so it is a cleaner
-comparison than my ceiling share and is what I would adopt next time.
+this is a small instance of it. Knauer et al. induce a decision tree from the
+target and the column names alone, with no rows and no labels [6], which is the
+move my model-written rules make, and TabLLM shows column names carry zero-shot
+signal before any label [7]. AutoElicit scores an elicited prior against real
+data by marginal likelihood and chooses between priors by Bayes factor [8], which
+does not depend on a test split and is what I would adopt next time.
 
 All four are classification where my target is duration, and the first three need
 feature names to be descriptive, which Knauer et al. state as a precondition. A
@@ -47,7 +57,7 @@ columns would not be.
 
 The records are written by the people who do the work. Each feed gives the work
 type, the owning department, how the request came in, and when it opened and
-closed. I take the full weeks of 4 May and 8 June 2026 from each city (Table 1).
+closed. I take the full weeks of 4 May and 8 June 2026 (Table 1).
 
 Caption: the four feeds, two complete weeks from each.
 | city | train | test | median resolution | categories |
@@ -58,35 +68,33 @@ Caption: the four feeds, two complete weeks from each.
 | San Francisco | 17,723 | 17,007 | 15.1h | 37 |
 
 Tickets still open when I pulled the data are kept and counted as slow, since all
-are months past any threshold I use. Chicago closes most of its feed within a
-second of creation, and I drop those rows as records rather than work.
+are months past any threshold. Chicago closes most of its feed within a second of
+creation, and I drop those rows as records rather than work.
 
 The task is to predict, at the moment a ticket opens, whether it will take longer
 than the median to close. Recovered skill, reported alongside AUC, is
-`(AUC - 0.5) / (ceiling - 0.5)`. I fixed the band above before running anything.
-The null I test against is that the rules carry no information about which work
-runs slow, so any score they reach is available from carving up the same taxonomy
-at random.
+`(AUC - 0.5) / (ceiling - 0.5)`. The null I test against is that the rules carry
+no information about which work runs slow, so any score they reach is available
+from carving up the same taxonomy at random.
 
 The ceiling: a prior reads two columns, the service category and the owning
 department, so I fit the conditional rate from those same two to see what they
 support. It is a taxonomy ceiling, not a general limit on skill, and it separates
-a weak rule from weak features. It is one estimator rather than a proved upper
-bound, so a rule can beat it, and one does. I settled on it after the first
-Austin arm had been scored against a different estimator, so the AUCs here are
-pre-registered and the denominator is not. Every percentage sits beside its raw
-AUC for that reason.
+a weak rule from weak features. I settled on it after the first Austin arm had
+been scored against a different estimator, so the AUCs here are pre-registered
+and the denominator is not. Every percentage sits beside its raw AUC.
 
-I report two kinds of interval, because a prior is a function of the category and
-gives the same answer to every ticket in one. Resampling tickets treats 17,007
-San Francisco rows as independent when I have 37, so I resample both ways [9].
-That second unit needs a warning: its consistency results are asymptotic in the
-number of clusters and assume rough balance, and mine is neither. One San
-Francisco category holds 34% of the rows, and the effective count is 5.3 against
-37 categories, Austin 22.3 against 117. At that size almost nothing could clear
-the interval, so I read those intervals as descriptive rather than as tests, and
-where I say something is not established I mean this design cannot establish it
-[10].
+I report two kinds of interval. Resampling tickets treats 17,007 San Francisco
+rows as independent when the rules were written per category, so I also resample
+categories [9]. That second unit carries two warnings. A score is constant within
+a category only where the category has one owning department, which holds
+throughout Austin but fails for 22 of San Francisco's 37 categories, 99.6% of its
+rows. And clustered resampling is asymptotic in the number of clusters and
+assumes rough balance, where one San Francisco category holds 34% of the rows and
+the effective count is 5.3 against 37 categories, Austin 22.3 against 117. Almost
+nothing could clear an interval that wide, so I read the category intervals as
+descriptive rather than as tests, and where I say something is not established I
+mean this design cannot establish it [10].
 
 I pulled each catalogue with the query limited to category names and row counts,
 so no duration, rate or outcome reached me. I wrote the rules from that alone,
@@ -130,24 +138,24 @@ cut of a lopsided taxonomy would. Two controls tell those apart.
 Caption: blind rules against two baselines built from structure alone, with category intervals and the permutation test of the null.
 | city | arm | AUC | [95% CI] | recovered | p vs H0 |
 | --- | --- | --- | --- | --- | --- |
-| Austin | blind rules | 0.611 | | 29% | 0.110 |
+| Austin | blind rules, per ticket | 0.611 | | 29% | |
+| Austin | blind rules, per category | 0.617 | | | 0.110 |
 | Austin | category frequency alone | 0.516 | [0.351, 0.726] | 4% | |
 | Austin | same rules, verdicts shuffled | 0.501 | [0.322, 0.674] | 0% | |
-| San Francisco | blind rules | 0.777 | | 72% | 0.0015 |
-| San Francisco | category frequency alone | 0.672 | [0.441, 0.785] | 45% | |
-| San Francisco | same rules, verdicts shuffled | 0.499 | [0.312, 0.690] | 0% | |
+| SF | blind rules, per ticket | 0.777 | | 72% | |
+| SF | blind rules, per category | 0.741 | | | 0.0015 |
+| SF | category frequency alone | 0.672 | [0.441, 0.785] | 45% | |
+| SF | same rules, verdicts shuffled | 0.499 | [0.312, 0.690] | 0% | |
 
-Shuffling the verdicts across categories keeps everything structural, the same
-taxonomy and row counts and the same set of scores, and breaks only which
-category received which score. That draws from the null directly, so the share of
-shuffles reaching the observed AUC is a permutation p-value (Table 3).
-
-The null shuffles one verdict per category, so the arm is scored the same way for
-the two to be comparable. Scored per category it reaches 0.741 in San Francisco
-and 2 of 2,000 shuffles match it, p of 0.0015. In Austin it reaches 0.617 and 220
-shuffles match it, p of 0.110. So I reject the null in San Francisco and cannot
-in Austin: the reasoning does real work in one city and is not distinguishable
-from a lucky cut of the same taxonomy in the other.
+Shuffling the verdicts across categories keeps the taxonomy, the row counts and
+the set of scores, and breaks only which category got which score, so it draws
+from the null directly and the share of shuffles reaching the observed AUC is a
+permutation p-value (Table 3). The null assigns one verdict per category, so the
+arm is scored that way too, which is why the table carries a second AUC for it.
+The rules reach 0.741 in San Francisco with 2 of 2,000 shuffles matching, p of
+0.0015, and 0.617 in Austin with 220 matching, p of 0.110. I reject the null in
+San Francisco and cannot in Austin, so the reasoning does real work in one city
+and is not distinguishable from a lucky cut of the taxonomy in the other.
 
 Frequency is the harder baseline, because the pull gave me row counts and those
 are themselves real operational data. Scored rarer-is-slower it reaches 0.672
@@ -193,40 +201,33 @@ Caption: dropping the highest-volume categories in each city, for both sets of r
 | SF, minus top 2 | the model | 7,255 | 0.595 | 0.851 | 27% |
 
 Austin Resource Recovery (Table 4) is 34% of the city's volume and 70% of its
-work runs slow, yet both sets of rules call it fast, at a mean prediction of 0.37
-for the model and 0.05 for mine.
-Take it out and the model's rules reach 70% against San Francisco's 72%, while
-mine reach 38% against 46%, so the gap closes for both of us.
+work runs slow, yet both sets of rules call it fast, 0.37 for the model and 0.05
+for mine. Take it out and the model reaches 70% against San Francisco's 72% and I
+reach 38% against 46%, so the gap closes for both of us. A missed collection sits
+open until the next scheduled route, a week away. The work is routine. The ticket
+is not, and nothing in the phrase ARR - Compost tells you so.
 
-The reason is plain enough. A missed collection sits open until the next
-scheduled route, a week away. The work is routine. The ticket is not, and nothing
-in the phrase ARR - Compost tells you so.
+Run on San Francisco the same operation cuts the other way, which is the more
+important half of the table. Its two largest categories are 57% of test volume,
+both fast and both called fast. Drop them and the ceiling barely moves, 0.886 to
+0.851, while the model falls from 72% to 27% and I fall from 46% to 20%. A
+two-line rule calling those two fast and the rest slow scores 0.699 by itself, so
+the 72% rests on a few high-volume decisions, not 37 categories of reasoning.
 
-Run on San Francisco the same operation cuts the other way, and that is the more
-important half of the table. Its two largest categories, Street and Sidewalk
-Cleaning and Parking Enforcement, are 57% of test volume, both fast and both
-called fast. Drop them and the ceiling barely moves, 0.886 to 0.851, while the
-model falls from 72% to 27% and I fall from 46% to 20%. A two-line rule calling
-those two fast and the rest slow scores 0.699 by itself, so the 72% rests on a
-few high-volume decisions, not 37 categories of reasoning.
+ARR is a department prefix rather than a category called waste, so removing it
+also takes out fast work it owns, such as ARR - Dead Animal Collection at 0.0%
+slow. And Graffiti Public is 8.2% of San Francisco volume and 85.1% slow but
+priced at 0.37 by the model, so the failure ARR shows in Austin is present there
+too and no subset here removes it.
 
-Two further caveats. ARR is a department prefix rather than a category called
-waste, so removing it also removes fast work that department owns: ARR - Dead
-Animal Collection runs 0.0% slow and ARR - General 8.9%, both predicted fast and
-both right. And Graffiti Public is 8.2% of San Francisco volume and 85.1% slow
-but priced at 0.37 by the model and 0.09 by me, so the same failure ARR shows in
-Austin is present there and no subset here removes it.
+### What the prior does not beat
 
-### What the prior actually beats
-
-The sharpest way to put the San Francisco result is not as a percentage. Fitting
-the conditional rate on the real data using the category column alone scores
-0.771, and the blind rules score 0.777. Rules written by an author who never saw
-an outcome beat a model that saw every outcome, given the same column. That is
-worth more than the 72%, because it needs no denominator. Two caveats: the rules
-also read the owning department, which the category-only conditional does not, so
-it is not quite like for like, and it does not hold in Austin, where the
-category-only conditional reaches 0.883 against the rules' 0.611.
+Given the same two columns, a conditional fitted on the real data beats the blind
+rules by 0.108 in San Francisco and 0.272 in Austin, so real records win on this
+task in both cities. Against a conditional using the category column alone the
+rules look level, 0.777 to 0.771, but that comparator is missing the department
+column the rules read, which is worth 0.115 in San Francisco, and the 0.0067
+margin has a paired interval of [-0.201, +0.108].
 
 ### The finding
 
@@ -252,28 +253,26 @@ Caption: rules written with the rates in hand, those rules carried to another ci
 | NY rules carried | Chicago | 5.4h | 0.581 | 0.717 | 37% |
 | published target | New York | 5.4h | 0.830 | 0.918 | 79% |
 
-Rules written with a city's rates in hand reach 81% there. That is above the 72%
-a blind author got in San Francisco, but not by much.
+Rules written with a city's rates in hand reach 81% there, above the 72% a blind
+author got in San Francisco but not by much.
 
 The last row I did not expect. New York publishes the target it holds itself to,
-in days, for each complaint type. Ranking tickets by that alone reaches 0.830, or
-79%, matching rules written while looking at the real outcomes and needing no
+in days, per complaint type. Ranking tickets by that alone reaches 0.830, or 79%,
+matching rules written while looking at the real outcomes and needing no
 reasoning, no language model and no client records. If a client publishes what
 they intend to take, that document is worth about as much as the exercise this
-paper measures, and it is the first thing to ask them for.
+paper measures, and it is the first thing to ask for.
 
 It bears on contamination too, since a language model may be recalling published
 material rather than reasoning, and this row shows such a document carries most
-of the signal. I could not find an equivalent dataset for Austin or San
-Francisco, the two cities the blind result rests on, which narrows that worry
-without settling it.
+of the signal. I could not find an equivalent dataset for Austin or San Francisco,
+which narrows that worry without settling it.
 
-Carried to Chicago at Chicago's own median they score 0.496, which I called
-actively misleading in an earlier draft. That does not hold up (Table 5). The two
-medians are 5.4h and 118.0h, twenty-two times apart, so the carried row asks the
-rules a question nobody wrote them for. Held at New York's own threshold the same
-rules reach 0.581, or 37%. What is left is mechanical, since the rules fire on
-only 17.1% of Chicago rows because they are New York acronyms.
+Carried to Chicago at Chicago's own median they score 0.496, which an earlier
+draft called actively misleading. That does not hold up (Table 5): the medians
+are 5.4h and 118.0h, so the carried row asks a question nobody wrote the rules
+for. At New York's own threshold they reach 0.581, or 37%. What is left is
+mechanical, since they fire on 17.1% of Chicago rows, being New York acronyms.
 
 ### Distribution fidelity misses all of this
 
@@ -301,22 +300,32 @@ methods fit [13, 14].
 
 ## Limits
 
-Four cities, one domain, one task, and only two cities are blind. New York is a
+Four cities, one domain, one task, and only two cities blind. New York is a
 contamination control and Chicago its transfer target, so neither replicates
 anything, and what does replicate is an author effect whose category intervals
-cross zero. A 311 feed also has three usable columns, no documents that must
-agree with each other and no prices, so it is a thin stand-in for the enterprise
-data the question is really about.
+cross zero. A 311 feed has three usable columns, no documents that must agree
+with each other and no prices, so it is a thin stand-in for enterprise data.
 
-The second author is a language model, the biggest hole in my design. These feeds
-are among the most widely mirrored public datasets there are, so blind means the
-session showed it no durations, not that the weights hold none. Models have
+The second author is a language model, the biggest hole in my design. These feeds are
+widely mirrored, so blind means the session showed it no durations, not that the
+weights hold none. Models have
 memorised popular tabular datasets and score better on ones they have seen [15],
 the exact failure this arm is open to, and it produces every headline number. I
 did not record the prompt or the model version, so I cannot rerun it.
 
 I wrote the San Francisco rules knowing what Austin had shown, so they are blind
-to that city's rates but I am not blind to the lesson. The ARR result is a subset
+to that city's rates but I am not blind to the lesson.
+
+The Austin model arm has an ordering problem I should state. The commit that
+evaluated my own rules names three categories with their measured slow rates:
+compost at 96%, traffic signal maintenance at 8%, vehicle abatement at 94%. My
+rules call all three the wrong way. The model wrote its Austin rules twelve hours
+later and got two of the three right, using my own phrasing as keyword strings.
+Compost it still called fast, which argues against the rates being handed over
+wholesale, and both corrections are argued for in the file on grounds that do not
+need them. I did not record the prompt, so I cannot settle it. The blind
+condition I describe covers the catalogue pull, not what I had already written
+down by the time that author was asked. The ARR result is a subset
 I chose after seeing which family my rules got wrong, so it fits the numbers and
 nothing has tested it. New York carries known artefacts too, including a
 department that closes most tickets at exactly midnight.
@@ -327,12 +336,17 @@ Make the rules generate. My arms score rule sets against a conditional fitted on
 real data, which measures how much of a conditional a person can guess, whereas
 the question asks what generated data costs. Sampling rows from the taxonomy and
 volume counts, labelling them with the prior, then training on those and testing
-on real records would answer it directly.
+on real records would answer it directly. Then predict the failures before
+looking: my ARR explanation says any category whose clock is an administrative
+cycle will break a blind prior, so name those in a fifth city from the taxonomy
+alone, record the list, then measure.
 
-Then predict the failures before looking. My ARR explanation says any category
-whose clock is an administrative cycle will break a blind prior, so name those
-categories in a fifth city from the taxonomy alone, record the list, then
-measure.
+This bears on evaluating agents. If a taxonomy and a published target reach most
+of the achievable skill, an agent scored on tickets generated from that taxonomy
+is being scored on the part of the problem that was easiest to reconstruct. The
+categories where a blind prior fails are the ones a generated benchmark will get
+wrong, and they are invisible in the taxonomy it was built from. A high score
+there is evidence about the generator, not the agent.
 
 A prior can only be evaluated as a prior once per dataset, before anyone has seen
 the outcomes, and the prediction has to come first. Of the predictions I made
@@ -359,7 +373,7 @@ data generation through data-centric AI. In *NeurIPS Datasets and Benchmarks*,
 
 
 [4] B. van Breugel, Z. Qian and M. van der Schaar. Synthetic data, real errors: how
-(not) to publish and use synthetic data. In *ICML*, PMLR 202:34793-34808, 2023.
+(not) to publish and use synthetic data. In *ICML*, PMLR 202, 2023.
 
 
 
@@ -369,14 +383,12 @@ CCS*, 2025.
 
 
 [6] R. Knauer, M. Koddenbrock, R. Wallsberger et al. Zero-shot decision tree
-induction and embedding with large language models. In *KDD*, pages 1196-1206,
-2025.
+induction and embedding with large language models. In *KDD*, 2025.
 
 
 
 [7] S. Hegselmann, A. Buendia, H. Lang et al. TabLLM: few-shot classification of
-tabular data with large language models. In *AISTATS*, PMLR 206:5549-5581,
-2023.
+tabular data with large language models. In *AISTATS*, PMLR 206, 2023.
 
 
 
@@ -399,22 +411,19 @@ generation with recurrent conditional GANs. arXiv:1706.02633, 2017.
 
 
 [12] SDV Team. Quality report: column shapes and column pair trends. SDMetrics
-docs, docs.sdv.dev/sdmetrics, accessed 24 September 2026.
+docs.sdv.dev/sdmetrics, accessed 24 Sep 2026.
 
 
 
-[13] J. Zhang, G. Cormode, C. M. Procopiuc et al. PrivBayes:
-private data release via Bayesian networks. *ACM Trans. Database Syst.*,
-42(4):article 25, 2017.
+[13] J. Zhang, G. Cormode, C. M. Procopiuc et al. PrivBayes: private data release
+via Bayesian networks. *ACM Trans. Database Syst.*, 42(4):25, 2017.
 
 
 
-[14] R. McKenna, G. Miklau and D. Sheldon. Winning the NIST contest: a scalable
-and general approach to differentially private synthetic data. *J. Privacy and
+[14] R. McKenna, G. Miklau and D. Sheldon. Winning the NIST contest. *J. Privacy and
 Confidentiality*, 11(3), 2021.
 
 
 
-[15] S. Bordt, H. Nori, V. Rodrigues et al. Elephants never
-forget: memorization and learning of tabular data in large language models. In
-*COLM*, 2024.
+[15] S. Bordt, H. Nori, V. Rodrigues et al. Elephants never forget: memorization of
+tabular data in large language models. In *COLM*, 2024.

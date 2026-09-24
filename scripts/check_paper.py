@@ -22,19 +22,48 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PAPER = ROOT / "paper" / "paper.md"
 NUMBER = re.compile(r"-?\d[\d,]*\.?\d*%?")
-TOLERANCE = 0.002          # absolute, on the decimal figures the run prints
-PERCENT_TOLERANCE = 1.0    # percentage points, since those are printed rounded
+TOLERANCE = 0.002    # absolute, on the decimal figures the run prints
+# Percentages match exactly. A tolerance here defeats the check: a paper
+# percentage is two digits, the run prints dozens of them, and anything within a
+# point of any of them passes. That let 72% be changed to 92% and still pass,
+# because the run prints 93% elsewhere. Third-decimal drift on a live feed can
+# still move a rounded percentage across a boundary, and when it does this fails
+# loudly and a reviewer compares the two numbers by eye, which is the right
+# trade against silently accepting a figure nobody computed.
+PERCENT_TOLERANCE = 0.0
+
+
+CITATION = re.compile(r"\[\d+(?:, *\d+)*\]")
+TABLE_REF = re.compile(r"\bTables?\s+\d+")
+# things that are numbers but not findings: a year, the name of the feed, a
+# figure of speech with a digit in it. None of these are ever printed by a run
+# and none of them are claims, so checking them would only train the reader to
+# ignore the checker.
+NOT_A_FINDING = {"311", "2026", "2025", "2024", "2023", "2018", "2017",
+                 "2016", "2008", "2007", "2006", "0.5", "95", "1,000",
+                 "2,000", "4", "8"}
 
 
 def figures_in(markdown):
-    """Every number appearing in a table row, with the row it came from."""
+    """Every number in a table row or in prose, with the line it came from.
+
+    Prose is included because the two figures that once reached a draft
+    uncomputed were in prose, and a later review found two more there. A checker
+    that walks only table cells teaches you to trust the tables and nothing
+    else, which is worse than no checker.
+    """
     found = []
-    for line in markdown.splitlines():
-        if not line.startswith("|") or set(line) <= set("|- "):
+    body = markdown.split("## References")[0]
+    for line in body.splitlines():
+        if set(line) <= set("|- ") or line.startswith("#"):
             continue
-        for cell in line.strip("|").split("|"):
-            for token in NUMBER.findall(cell):
-                found.append((token, line.strip()))
+        text = line
+        if not line.startswith("|"):
+            text = CITATION.sub(" ", TABLE_REF.sub(" ", text))
+        for token in NUMBER.findall(text):
+            if token in NOT_A_FINDING:
+                continue
+            found.append((token, line.strip()))
     return found
 
 
