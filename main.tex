@@ -52,6 +52,27 @@ without sight of any outcome, predict how long a job takes at an AUC between
 0.60 and 0.72, and that anything below 0.55 would mean the reasoning adds
 nothing.
 
+\section*{Related work}
+
+That fidelity and utility can come apart is established [1, 2, 3, 4], and whether
+the standard metrics measure the right thing is itself argued over [5]. I take
+that as given rather than as something to show, and the fidelity ladder below is
+here only because it makes the point on the same data as everything else.
+
+The nearer literature is language models as priors over tabular problems, and
+this design is a small instance of it. Knauer et al. induce a decision tree from
+the target and the column names alone, with no rows and no labels [6], which is
+the move my model-written rules make, and TabLLM shows column names carry useful
+zero-shot signal before any label [7]. AutoElicit elicits a prior from a model
+and scores it against real data by marginal likelihood, choosing between priors
+by Bayes factor [8]. That does not depend on a test split, so it is a cleaner
+comparison than my ceiling share and is what I would adopt next time.
+
+All four are classification where my target is duration, and the first three need
+feature names to be descriptive, which Knauer et al. state as a precondition. A
+311 taxonomy is unusually kind on that point. An enterprise schema of coded
+columns would not be.
+
 \section*{Method}
 
 The records are written by the people who do the work. Each feed gives the work
@@ -96,14 +117,14 @@ AUC for that reason.
 
 I report two kinds of interval, because a prior is a function of the category and
 gives the same answer to every ticket in one. Resampling tickets treats 17,007
-San Francisco rows as independent when I have 37, so I resample both ways [1].
+San Francisco rows as independent when I have 37, so I resample both ways [9].
 That second unit needs a warning: its consistency results are asymptotic in the
 number of clusters and assume rough balance, and mine is neither. One San
 Francisco category holds 34\% of the rows, and the effective count is 5.3 against
 37 categories, Austin 22.3 against 117. At that size almost nothing could clear
 the interval, so I read those intervals as descriptive rather than as tests, and
 where I say something is not established I mean this design cannot establish it
-[12].
+[10].
 
 I pulled each catalogue with the query limited to category names and row counts,
 so no duration, rate or outcome reached me. I wrote the rules from that alone,
@@ -338,7 +359,7 @@ My first recorded hypothesis, fixed in \texttt{HYPOTHESIS.md} before I ran anyth
 that generated records matching real data to low-order fidelity would still hold
 combinations the real process could never produce, and that accuracy would fall
 as those rose. I tested it by fitting generators on real New York records,
-sampling, training on the sample and testing on real records [2]. It failed, for
+sampling, training on the sample and testing on real records [11]. It failed, for
 a structural reason. My pairwise generator draws department conditional on
 category, so it cannot emit a pair it never saw and its 0.0\% impossible rate is
 an identity, and the learner is additive over one-hot columns with no interaction
@@ -350,11 +371,11 @@ not the same sentence.
 The ladder still shows the one thing it is here for. Marginals alone lose almost
 everything, 0.511 against a 0.918 ceiling, while adding pairwise dependence
 recovers all of it at 0.917. A generator clearing the column shapes and column
-pair trends a quality report scores [5] is indistinguishable from real records
+pair trends a quality report scores [12] is indistinguishable from real records
 here, so a distribution-level check cannot see the effect this paper measures. My
 generators are conditional probability tables with no privacy noise, so they are
 not PrivBayes or MST, but the order of structure they keep is the order those
-methods fit [3, 4].
+methods fit [13, 14].
 
 \section*{Limits}
 
@@ -368,7 +389,7 @@ data the question is really about.
 The second author is a language model, the biggest hole in my design. These feeds
 are among the most widely mirrored public datasets there are, so blind means the
 session showed it no durations, not that the weights hold none. Models have
-memorised popular tabular datasets and score better on ones they have seen [11],
+memorised popular tabular datasets and score better on ones they have seen [15],
 the exact failure this arm is open to, and it produces every headline number. I
 did not record the prompt or the model version, so I cannot rerun it.
 
@@ -378,110 +399,100 @@ I chose after seeing which family my rules got wrong, so it fits the numbers and
 nothing has tested it. New York carries known artefacts too, including a
 department that closes most tickets at exactly midnight.
 
-That fidelity and utility can come apart is established [6, 7, 8, 9], and
-whether the standard metrics measure the right thing is itself argued over [10].
-I include the ladder only because it shows a distribution-level check cannot see
-the effect I measured.
-
-The nearer literature is language models as priors over tabular problems, and
-this design is a small instance of it. Knauer et al. induce a decision tree from
-the target and the column names alone, with no rows and no labels [13], which is
-the move my model-written rules make, and TabLLM shows column names carry useful
-zero-shot signal before any label [14]. AutoElicit elicits a prior from a model
-and scores it against real data by marginal likelihood, choosing between priors
-by Bayes factor [15]. That does not depend on a test split, so it is a cleaner
-comparison than my ceiling share and is what I would adopt next time.
-
-All four are classification where my target is duration, and the first three
-need feature names to be descriptive, which Knauer et al. state as a
-precondition. A 311 taxonomy is unusually kind on that point. An enterprise
-schema of coded columns would not be.
-
 \section*{What it would take to answer the general question}
 
-Make the rules generate. My arms compare rule sets against a conditional fitted
-on real data, which measures how much of a conditional a person can guess,
-whereas the question asks what generated data costs. Sampling rows from the
-taxonomy and volume counts, labelling them with the prior, then training on those
-and testing on real records would give the number a buyer needs: how much of the
-training value of real records does a generator built without them deliver.
+Make the rules generate. My arms score rule sets against a conditional fitted on
+real data, which measures how much of a conditional a person can guess, whereas
+the question asks what generated data costs. Sampling rows from the taxonomy and
+volume counts, labelling them with the prior, then training on those and testing
+on real records would answer it directly.
 
 Then predict the failures before looking. My ARR explanation says any category
-whose clock is an administrative cycle will break a blind prior. Name those
-categories in a fifth city from the taxonomy alone, write the list down, then
-measure. More authors would help too, including people who do the work, as would
-a model whose prompt and version I recorded.
+whose clock is an administrative cycle will break a blind prior, so name those
+categories in a fifth city from the taxonomy alone, record the list, then
+measure.
 
-One thing holds either way. A prior can only be evaluated as a prior once per
-dataset, before anyone has seen the outcomes, and the prediction has to come
-first. Of the predictions I made here, the only one made in real ignorance is the
-one that turned out wrong.
+A prior can only be evaluated as a prior once per dataset, before anyone has seen
+the outcomes, and the prediction has to come first. Of the predictions I made
+here, the only one made in real ignorance is the one that turned out wrong.
 
 \section*{References}
 \scriptsize
 
-[1] C. A. Field and A. H. Welsh. Bootstrapping clustered data. \textit{J. R. Stat. Soc. B}, 69(3):369-390, 2007.
-
-
-[2] C. Esteban, S. L. Hyland and G. Rätsch. Real-valued (medical) time series
-generation with recurrent conditional GANs. arXiv:1706.02633, 2017.
-
-
-[3] J. Zhang, G. Cormode, C. M. Procopiuc et al. PrivBayes:
-private data release via Bayesian networks. \textit{ACM Trans. Database Syst.},
-42(4):article 25, 2017.
-
-
-[4] R. McKenna, G. Miklau and D. Sheldon. Winning the NIST contest: a scalable
-and general approach to differentially private synthetic data. \textit{J. Privacy and Confidentiality}, 11(3), 2021.
-
-
-[5] SDV Team. Quality report: column shapes and column pair trends. SDMetrics
-docs, docs.sdv.dev/sdmetrics, accessed 24 September 2026.
-
-
-[6] A. F. Karr, C. N. Kohnen, A. Oganian et al. A
+[1] A. F. Karr, C. N. Kohnen, A. Oganian et al. A
 framework for evaluating the utility of data altered to protect confidentiality.
 \textit{The American Statistician}, 60(3):224-232, 2006.
 
 
-[7] J. Snoke, G. M. Raab, B. Nowok et al. General and
+
+[2] J. Snoke, G. M. Raab, B. Nowok et al. General and
 specific utility measures for synthetic data. \textit{J. R. Stat. Soc. A},
 181(3):663-688, 2018.
 
 
-[8] L. Hansen, N. Seedat, M. van der Schaar et al. Reimagining synthetic tabular
+
+[3] L. Hansen, N. Seedat, M. van der Schaar et al. Reimagining synthetic tabular
 data generation through data-centric AI. In \textit{NeurIPS Datasets and Benchmarks},
 2023.
 
 
-[9] B. van Breugel, Z. Qian and M. van der Schaar. Synthetic data, real errors: how
+
+[4] B. van Breugel, Z. Qian and M. van der Schaar. Synthetic data, real errors: how
 (not) to publish and use synthetic data. In \textit{ICML}, PMLR 202:34793-34808, 2023.
 
 
-[10] Y. Du and N. Li. Systematic assessment of tabular data synthesis. In \textit{ACM CCS}, 2025.
+
+[5] Y. Du and N. Li. Systematic assessment of tabular data synthesis. In \textit{ACM CCS}, 2025.
 
 
-[11] S. Bordt, H. Nori, V. Rodrigues et al. Elephants never
-forget: memorization and learning of tabular data in large language models. In
-\textit{COLM}, 2024.
 
-
-[12] A. C. Cameron, J. B. Gelbach and D. L. Miller. Bootstrap-based improvements for
-inference with clustered errors. \textit{Rev. Econ. Stat.}, 90(3):414-427, 2008.
-
-
-[13] R. Knauer, M. Koddenbrock, R. Wallsberger et al. Zero-shot decision tree
+[6] R. Knauer, M. Koddenbrock, R. Wallsberger et al. Zero-shot decision tree
 induction and embedding with large language models. In \textit{KDD}, pages 1196-1206,
 2025.
 
 
-[14] S. Hegselmann, A. Buendia, H. Lang et al. TabLLM: few-shot classification of
+
+[7] S. Hegselmann, A. Buendia, H. Lang et al. TabLLM: few-shot classification of
 tabular data with large language models. In \textit{AISTATS}, PMLR 206:5549-5581,
 2023.
 
 
-[15] A. Capstick, R. G. Krishnan and P. Barnaghi. AutoElicit: LLMs for expert prior
+
+[8] A. Capstick, R. G. Krishnan and P. Barnaghi. AutoElicit: LLMs for expert prior
 elicitation in predictive modelling. In \textit{ICML}, PMLR vol. 267, 2025.
+
+[9] C. A. Field and A. H. Welsh. Bootstrapping clustered data. \textit{J. R. Stat. Soc. B}, 69(3):369-390, 2007.
+
+
+
+[10] A. C. Cameron, J. B. Gelbach and D. L. Miller. Bootstrap-based improvements for
+inference with clustered errors. \textit{Rev. Econ. Stat.}, 90(3):414-427, 2008.
+
+
+
+[11] C. Esteban, S. L. Hyland and G. Rätsch. Real-valued (medical) time series
+generation with recurrent conditional GANs. arXiv:1706.02633, 2017.
+
+
+
+[12] SDV Team. Quality report: column shapes and column pair trends. SDMetrics
+docs, docs.sdv.dev/sdmetrics, accessed 24 September 2026.
+
+
+
+[13] J. Zhang, G. Cormode, C. M. Procopiuc et al. PrivBayes:
+private data release via Bayesian networks. \textit{ACM Trans. Database Syst.},
+42(4):article 25, 2017.
+
+
+
+[14] R. McKenna, G. Miklau and D. Sheldon. Winning the NIST contest: a scalable
+and general approach to differentially private synthetic data. \textit{J. Privacy and Confidentiality}, 11(3), 2021.
+
+
+
+[15] S. Bordt, H. Nori, V. Rodrigues et al. Elephants never
+forget: memorization and learning of tabular data in large language models. In
+\textit{COLM}, 2024.
 
 \end{document}
