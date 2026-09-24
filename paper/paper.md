@@ -1,6 +1,8 @@
 # What a domain prior can and cannot replace
 
-Every figure below is printed by `python run_all.py`.
+Every figure below is printed by `python run_all.py`. Reproducing the paper is
+one command against four public feeds, with no key, no account and no cost. See
+the closing section.
 
 ## Question
 
@@ -26,14 +28,15 @@ fails, the behaviour has to come from the client's own data.
 
 ## Method
 
-**Data.** Public 311 service request feeds from four cities. These are real
+**Data** (Table 1). Public 311 service request feeds from four cities. These are real
 operational records, written by the organisations that do the work. Two
 complete calendar weeks from each, the weeks of 4 May and 8 June 2026.
 
+Caption: the four feeds, two complete weeks from each.
 | city | train | test | median resolution | categories |
 | --- | --- | --- | --- | --- |
-| New York | 72,206 | 78,296 | 5.4h | 132 |
-| Chicago | 17,291 | 38,671 | 118.0h | 97 |
+| New York | 72,206 | 78,296 | 5.4h | 164 |
+| Chicago | 17,291 | 38,671 | 118.0h | 92 |
 | Austin | 5,968 | 6,029 | 23.8h | 117 |
 | San Francisco | 17,723 | 17,007 | 15.1h | 37 |
 
@@ -65,6 +68,7 @@ model that saw only the taxonomy and was instructed not to look anything up.
 
 ### What a blind prior recovers
 
+Caption: what a blind prior recovers, by city and by author.
 | city | author | AUC [95% CI] | ceiling | recovered | vs chance |
 | --- | --- | --- | --- | --- | --- |
 | Austin | human | 0.494 [0.481, 0.508] | 0.883 | -1% | indistinguishable |
@@ -75,7 +79,7 @@ model that saw only the taxonomy and was instructed not to look anything up.
 Intervals are 1,000-resample bootstraps. The null baseline, always predicting
 the majority class, scores 0.500 by construction.
 
-**H cannot be answered yes or no.** A blind prior recovers 72% of the achievable
+**H cannot be answered yes or no** (Table 2). A blind prior recovers 72% of the achievable
 skill in San Francisco and nothing at all in Austin. Testing one city would have
 produced a confident conclusion in either direction, and the direction would
 have been an artefact of the city.
@@ -99,13 +103,14 @@ achievement and is reported as such.
 
 ### One category family explains the gap between the cities
 
+Caption: removing one category family closes the gap between the cities.
 | subset | n | prior | ceiling | recovered |
 | --- | --- | --- | --- | --- |
 | Austin, all tickets | 6,029 | 0.611 | 0.883 | 29% |
 | Austin, excluding waste collection | 4,008 | 0.766 | 0.881 | **70%** |
 | San Francisco, all tickets | 17,007 | 0.777 | 0.886 | 72% |
 
-Remove one family of work from Austin and its blind prior recovers 70%, which is
+Remove one family of work from Austin (Table 3) and its blind prior recovers 70%, which is
 San Francisco's 72%. The cities were never different. One category family was.
 
 Waste collection is 34% of Austin's volume and 70% of it runs slow. The prior
@@ -118,7 +123,7 @@ San Francisco has no equivalent. Its two largest categories, street cleaning and
 parking enforcement, are 57% of volume, and both behave the way the work
 suggests.
 
-| city | categories | top 5 share | volume in wrong-direction categories |
+| city | categories | top 5 share | volume misread |
 | --- | --- | --- | --- |
 | Austin | 117 | 40% | 35% |
 | San Francisco | 37 | 78% | 17% |
@@ -134,12 +139,13 @@ taxonomy.
 
 ### What having the rates is worth
 
+Caption: the same procedure with the site's rates in hand.
 | prior | tested on | AUC [95% CI] | ceiling | recovered |
 | --- | --- | --- | --- | --- |
 | New York | New York | 0.840 [0.837, 0.843] | 0.918 | 81% |
 | New York, carried across | Chicago | 0.496 [0.492, 0.499] | 0.717 | -2% |
 
-Rules written with a city's conditional rates in hand reach 81% there, above the
+Rules written with a city's conditional rates in hand (Table 4) reach 81% there, above the
 72% a blind author reached in San Francisco but not by much. The same rules
 carried to another city fall entirely below chance. Their interval excludes 0.5
 from beneath, so they are not merely uninformative but actively misleading. The
@@ -147,7 +153,7 @@ department rules match 0.0% of Chicago rows, being New York acronyms.
 
 ### Distribution fidelity does not detect any of this
 
-| generator | AUC | recovered | records that cannot occur |
+| generator | AUC | recovered | impossible |
 | --- | --- | --- | --- |
 | real records (ceiling) | 0.918 | 100% | 0.0% |
 | marginal only | 0.466 | -8% | 70.5% |
@@ -188,6 +194,25 @@ its tickets at exactly midnight, so its recorded durations are administrative.
 That low-order fidelity fails to imply downstream utility is established. The
 ladder is included because it shows a distribution-level check cannot see the
 effect this paper measures.
+
+## Reproducing this
+
+    python run_all.py
+
+Four public 311 feeds, no key, no account, no cost, numpy and scikit-learn the
+only dependencies. The first run downloads about 60MB and takes a few minutes.
+It prints the six tables above, in order.
+
+Two runs on the same data are byte-identical, since every random draw is
+seeded. `scripts/check_paper.py` walks every table cell here and fails if a
+number appears that the run did not print, which exists because two figures
+once reached a draft without being computed. The feeds are live, so
+`data/MANIFEST.json` records the row count and hash of each file these figures
+came from and the run reports any disagreement before printing. A reviewer
+whose numbers differ can tell whether the data moved or the code did.
+
+The blind priors are one file per author per city in `src/`, each carrying its
+reasoning and its recorded prediction.
 
 ## What it would take to answer the general question
 

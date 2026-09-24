@@ -14,11 +14,17 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "paper" / "paper.md"
 DEFAULT_OUT = ROOT.parent / "tgdc-research-paper" / "main.tex"
 
-PREAMBLE = r"""\documentclass[10pt,a4paper]{article}
+PREAMBLE = r"""\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[british]{babel}
-\usepackage[margin=2.0cm]{geometry}
+\usepackage[margin=1.8cm]{geometry}
+\setlength{\columnsep}{0.8cm}
+\setcounter{topnumber}{3}
+\setcounter{totalnumber}{4}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.8}
 \usepackage{booktabs}
 \usepackage{microtype}
 \usepackage{titlesec}
@@ -27,15 +33,23 @@ PREAMBLE = r"""\documentclass[10pt,a4paper]{article}
 \titlespacing*{\subsection}{0pt}{0.8em}{0.25em}
 \setlength{\parskip}{0.35em}
 \setlength{\parindent}{0pt}
-\title{\vspace{-1.6em}\textbf{%s}\vspace{-0.4em}}
+\title{\vspace{-1.0em}\textbf{%s}\vspace{-0.4em}}
 \author{\textbf{Cajetan Songwae} \\
   \small{\href{mailto:songwae2000@gmail.com}{songwae2000@gmail.com}} \\
   \small{TGDC case study, research track}}
 \date{}
 \begin{document}
-\maketitle
-\vspace{-2.2em}
+\twocolumn[
+  \begin{@twocolumnfalse}
+  \maketitle
+  \vspace{-2.0em}
+  \end{@twocolumnfalse}
+]
 """
+
+
+SPECIALS = {"<": r"\textless{}", ">": r"\textgreater{}",
+            "#": r"\#", "$": r"\$"}
 
 
 def escape(text):
@@ -43,6 +57,8 @@ def escape(text):
     # to happen before the percent sign is escaped or the pattern stops matching
     text = re.sub(r"(?<![\d\w])-(\d+%)", r"MINUS\1", text)
     text = text.replace("%", r"\%").replace("&", r"\&")
+    for raw, safe in SPECIALS.items():
+        text = text.replace(raw, safe)
     text = re.sub(r"MINUS([\d.]+\\%)", r"$-\1$", text)
 
     text = re.sub(r"`([^`]+)`",
@@ -50,35 +66,73 @@ def escape(text):
     return re.sub(r"\*\*([^*]+)\*\*", r"\\textbf{\1}", text)
 
 
-def table(rows):
+def table(rows, caption=None):
     header = [c.strip() for c in rows[0].strip("|").split("|")]
     body = [[c.strip() for c in r.strip("|").split("|")] for r in rows[2:]]
-    align = "l" * 2 + "r" * (len(header) - 2) if len(header) > 3 else \
-        "l" + "r" * (len(header) - 1)
+    # a column is right-aligned when its values are numbers, which is most of
+    # them. Left-aligning a numeric column wastes width the column cannot spare.
+    def numeric(index):
+        cells = [row[index] for row in body if index < len(row)]
+        return all(re.fullmatch(r"[-$\\%\d.,\[\] a-z]*\d[-$\\%\d.,\[\] a-z]*",
+                                c.replace("**", "").strip()) for c in cells if c)
 
-    out = [r"\begin{center}\small", r"\begin{tabular}{" + align + "}", r"\toprule",
+    align = "l" + "".join("r" if numeric(i) else "l"
+                          for i in range(1, len(header)))
+
+    wide = len(header) > 4
+    size = r"\footnotesize"
+
+    # narrow tables stay exactly where the text puts them. Wider ones have to
+    # span both columns, which means floating, so they carry a caption.
+    if wide:
+        out = [r"\begin{table*}[t]", r"\centering", size]
+    else:
+        # inline tables have only one column of width to live in, so the
+        # padding between cells is tightened rather than the content cut
+        out = [r"\begin{center}", size, r"\setlength{\tabcolsep}{4pt}"]
+    out += [
+           r"\begin{tabular}{" + align + "}", r"\toprule",
            " & ".join(escape(h) for h in header) + r" \\", r"\midrule"]
     out += [" & ".join(escape(c) for c in row) + r" \\" for row in body]
-    return out + [r"\bottomrule", r"\end{tabular}", r"\end{center}"]
+    out += [r"\bottomrule", r"\end{tabular}"]
+    if wide:
+        out += [r"\caption{" + escape(caption) + "}" if caption else "",
+                r"\end{table*}"]
+    else:
+        out += [r"\end{center}"]
+    return [line for line in out if line]
 
 
 def convert(markdown):
     lines = markdown.splitlines()
     title = lines[0].lstrip("# ").strip()
 
-    out, i = [], 1
+    out, i, pending_caption = [], 1, None
     while i < len(lines):
         line = lines[i]
         if line.startswith("### "):
             out.append(r"\subsection*{" + escape(line[4:]) + "}")
         elif line.startswith("## "):
             out.append(r"\section*{" + escape(line[3:]) + "}")
+        elif line.startswith("    ") and line.strip():
+            block = []
+            while i < len(lines) and (lines[i].startswith("    ") or not lines[i].strip()):
+                block.append(lines[i][4:])
+                i += 1
+            while block and not block[-1].strip():
+                block.pop()
+            out += [r"\begin{quote}\small\begin{verbatim}"] + block + \
+                   [r"\end{verbatim}\end{quote}"]
+            continue
+        elif line.startswith("Caption: "):
+            pending_caption = line[len("Caption: "):]
         elif line.startswith("|"):
             block = []
             while i < len(lines) and lines[i].startswith("|"):
                 block.append(lines[i])
                 i += 1
-            out += table(block)
+            out += table(block, pending_caption)
+            pending_caption = None
             continue
         else:
             out.append(escape(line) if line.strip() else "")

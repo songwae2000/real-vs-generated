@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .DS_Store
 data/*.json
+!data/MANIFEST.json
 
 paper/main.pdf
 paper/main.tex

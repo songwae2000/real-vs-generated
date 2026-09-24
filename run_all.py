@@ -13,7 +13,7 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
-from src import cities, stats, tickets
+from src import cities, manifest, stats, tickets
 from src.austin_prior import PREDICTED_RANGE as AUSTIN_HUMAN_BAND
 from src.austin_prior import prior_slow_probability as austin_human
 from src.austin_prior_llm import PREDICTED_RANGE as AUSTIN_LLM_BAND
@@ -54,6 +54,15 @@ def main():
     print("data")
     for city in cities.ALL:
         tickets.ensure(city)
+
+    drift = manifest.check()
+    if drift:
+        print("\n  WARNING: the feeds have moved since the paper was written.")
+        for note in drift:
+            print(f"    {note}")
+        print("  Figures below will differ from the paper by that much.")
+    else:
+        print("  data matches the manifest the paper was computed from")
 
     loaded = {city.name: prepared(city) for city in cities.ALL}
     print(f"\n  {'city':<16}{'train':>8}{'test':>8}{'median':>9}{'categories':>12}")
