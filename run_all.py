@@ -12,7 +12,7 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
-from src import cities, tickets
+from src import cities, stats, tickets
 from src.generators import GENERATORS
 from src.austin_prior import prior_slow_probability as austin_prior
 from src.nyc_prior import prior_slow_probability as nyc_prior
@@ -76,20 +76,25 @@ def main():
         print(f"  {city.name:<10} {len(train_f):>6} train  {len(test_f):>6} test"
               f"   median {threshold:>6.1f}h")
 
-    print("\n\nTABLE 1: a prior only works where it was written")
-    print(f"  {'rules for':<12}{'tested on':<12}{'saw rates':<12}"
-          f"{'AUC':>7}{'ceiling':>10}{'recovered':>11}")
+    print("\n\nTABLE 1: what each prior recovers, with 95% bootstrap intervals")
+    print(f"  {'prior':<12}{'tested on':<11}{'saw rates':<12}{'AUC [95% CI]':>22}"
+          f"{'ceiling':>9}{'recovered':>11}{'vs chance':>19}")
 
-    rows = [("New York", "New York", "yes", nyc_prior),
+    rows = [("Austin", "Austin", "no, pre-reg", austin_prior),
             ("New York", "Chicago", "no", nyc_prior),
-            ("Austin", "Austin", "no, pre-reg", austin_prior)]
+            ("New York", "New York", "yes", nyc_prior)]
 
     for authored, tested, saw, prior in rows:
         train_f, train_y, test_f, test_y, _ = loaded[tested]
-        auc, fired = prior_auc(prior, test_f, test_y)
+        scores = [prior(f["category"], f["department"]) for f in test_f]
+        auc, lo, hi = stats.auc_interval(test_y, scores)
         top = ceiling(train_f, train_y, test_f, test_y)
-        print(f"  {authored:<12}{tested:<12}{saw:<12}{auc:>7.3f}{top:>10.3f}"
-              f"{recovered(auc, top):>10.0%}")
+        interval = f"{auc:.3f} [{lo:.3f}, {hi:.3f}]"
+        print(f"  {authored:<12}{tested:<11}{saw:<12}{interval:>22}{top:>9.3f}"
+              f"{recovered(auc, top):>10.0%}{stats.versus_chance(lo, hi):>19}")
+
+    print("\n  null baseline: always predict the majority class, AUC 0.500 by "
+          "construction")
 
     print("\n\nTABLE 2: the blind prior is not failing for lack of coverage")
     train_f, train_y, test_f, test_y, _ = loaded["Austin"]
@@ -101,11 +106,26 @@ def main():
     print(f"  tickets it called slow ran slow {np.mean(said_slow):.1%} of the time")
     print(f"  tickets it called fast ran slow {np.mean(said_fast):.1%} of the time")
 
-    print("\n\nTABLE 3: fidelity ladder, trained on generated New York records")
+    print("\n\nTABLE 3: the information ceiling for the prior's own columns")
+    print("  best achievable from category and department alone, against what")
+    print("  a prior reasoning over those same columns actually reaches\n")
+    print(f"  {'city':<10}{'fitted lookup':>16}{'prior':>9}{'gap':>8}")
+    for city_name, prior in (("Austin", austin_prior), ("New York", nyc_prior)):
+        train_f, train_y, test_f, test_y, _ = loaded[city_name]
+        lookup = stats.conditional_lookup(train_f, train_y, test_f,
+                                          ("category", "department"))
+        best = roc_auc_score(test_y, lookup)
+        got = roc_auc_score(test_y, [prior(f["category"], f["department"])
+                                     for f in test_f])
+        print(f"  {city_name:<10}{best:>16.3f}{got:>9.3f}{best - got:>8.3f}")
+    print("\n  the columns carry the signal. The gap is what not knowing the")
+    print("  rates costs, not what the features lack.")
+
+    print("\n\nTABLE 4: fidelity ladder, trained on generated New York records")
     train_f, train_y, test_f, test_y, _ = loaded["New York"]
     ladder(train_f, train_y, test_f, test_y)
 
-    print("\n\nTABLE 4: why the New York rules do not carry to Chicago")
+    print("\n\nTABLE 5: why the New York rules do not carry to Chicago")
     train_f, train_y, test_f, test_y, _ = loaded["Chicago"]
     from src.nyc_prior import FAST_DEPT, SLOW_DEPT, SLOW_WORK
     hit = [y for f, y in zip(test_f, test_y)

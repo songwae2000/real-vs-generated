@@ -80,15 +80,19 @@ their evaluation is commit `4400226`.
 
 ### The blind prior reaches chance
 
-| prior | evaluated on | author had the site's rates | AUC | ceiling | recovered |
-| --- | --- | --- | --- | --- | --- |
-| Austin, **pre-registered** | Austin | **no** | **0.494** | 0.886 | **-1%** |
-| New York | Chicago | no | 0.496 | 0.729 | -2% |
-| New York | New York | yes | 0.840 | 0.918 | 81% |
+| prior | evaluated on | had the site's rates | AUC [95% CI] | ceiling | recovered | vs chance |
+| --- | --- | --- | --- | --- | --- | --- |
+| Austin, **pre-registered** | Austin | **no** | **0.494** [0.481, 0.508] | 0.886 | **-1%** | **indistinguishable** |
+| New York | Chicago | no | 0.496 [0.492, 0.499] | 0.729 | -2% | below |
+| New York | New York | yes | 0.840 [0.837, 0.843] | 0.918 | 81% | above |
 
-**H is refuted.** The blind prior scores 0.494 against a ceiling of 0.886. The
-recorded prediction of 0.60 to 0.72 was wrong, and wrong in the direction that
-says domain reasoning supplied nothing at all.
+Intervals are 1,000-resample bootstraps of the test set. The null baseline,
+always predicting the majority class, scores 0.500 by construction.
+
+**H is refuted.** The blind prior scores 0.494, and its interval spans chance.
+It is not weakly informative, it is statistically indistinguishable from
+guessing. The recorded prediction of 0.60 to 0.72 was wrong, and wrong in the
+direction that says domain reasoning supplied nothing at all.
 
 This is not a coverage failure. The Austin rules fired on 98.9% of tickets,
 producing scores spread from 0.05 to 0.95. Tickets they called slow ran slow
@@ -99,11 +103,30 @@ The same procedure reaches 81% of the ceiling when the author has the site's
 rates in hand. The distance between 81% and nothing is the measure of how much
 of that performance comes from the site rather than from the domain.
 
-The carried-across arm says the same thing from the other direction. The New
-York rules reach chance on Chicago. Their department rules match 0.0% of
-Chicago rows, being New York acronyms, and their keyword list is New York
-housing-stock vocabulary that in Chicago points the wrong way: rows it calls
-slow are slow 47.3% of the time against 58.6% for everything else.
+The carried-across arm makes the same point from the other direction, and
+slightly more sharply: its interval sits entirely below 0.5, so on Chicago the
+New York rules are not merely uninformative but actively misleading. Their
+department rules match 0.0% of Chicago rows, being New York acronyms, and
+their keyword list is New York housing-stock vocabulary that in Chicago points
+the wrong way. Rows it calls slow are slow 47.3% of the time against 58.6% for
+everything else.
+
+### The columns were not the problem
+
+A prior that reasons over service category and department could in principle
+reach whatever those two columns support. Fitting the conditional rate directly
+from training records, using nothing but those same two columns, gives the
+ceiling for any rule of that shape:
+
+| city | best from category and department | the prior reached | gap |
+| --- | --- | --- | --- |
+| Austin (blind) | 0.883 | 0.494 | **0.389** |
+| New York (informed) | 0.918 | 0.840 | 0.078 |
+
+The columns carry nearly all of the available signal in both cities. What
+separates the two rows is whether the author had the rates. The gap is the
+price of not knowing them, and it is five times larger when the author is
+working blind.
 
 ### Why domain reasoning fails here
 
