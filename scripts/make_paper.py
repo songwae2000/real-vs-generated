@@ -34,8 +34,8 @@ PREAMBLE = r"""\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage[hidelinks]{hyperref}
 \titlespacing*{\section}{0pt}{0.75em}{0.3em}
 \titlespacing*{\subsection}{0pt}{0.6em}{0.2em}
-\setlength{\parskip}{0.2em}
-\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\parindent}{1.2em}
 \title{\vspace{-1.0em}\textbf{%s}\vspace{-0.4em}}
 \author{\textbf{Cajetan Songwae} \\
   \small{\href{mailto:songwae2000@gmail.com}{songwae2000@gmail.com}} \\
