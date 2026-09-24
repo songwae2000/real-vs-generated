@@ -1,115 +1,108 @@
 # A domain prior remembers the site it was written against
 
+Every figure below is printed by `python run_all.py`.
+
 ## Question
 
 A lab that generates enterprise data has to decide whether its generator is
 any good. The usual check is to train a model on the generated records and
 score it on held-out real records from the organisation the generator was
-built for. If the model performs, the generator is judged faithful enough for
-the task.
+built for.
 
-When a generator encodes hand-written domain rules, can in-distribution
-evaluation distinguish genuine domain knowledge from a memory of the data
-those rules were written against?
+When a generator encodes hand-written domain rules, can that check
+distinguish genuine domain knowledge from a memory of the data those rules
+were written against?
 
 ## Hypothesis
 
 **H.** The conditional structure of real operational data is site-specific
-rather than domain-general. A generator built from domain priors authored
-against one organisation encodes that organisation. It will transfer within
-that site and fail across sites, and evaluation on held-out records from the
-same site cannot tell the two cases apart.
+rather than domain-general. A generator built from domain priors written
+against one organisation encodes that organisation. It will work within that
+site and fail across sites, and evaluation on held-out records from the same
+site cannot tell the two cases apart.
 
 This matters because a triage agent trained on generated data and validated
 against the client it was modelled on will be certified as working, then fail
 at the next client.
 
 The hypothesis was available to fail in two ways. Rules written against one
-city might transfer to another, since municipal service work is broadly
-similar. Or a prior written with no sight of the data might work in place, in
-which case the apparent skill of the first prior was knowledge rather than
-memory.
+city might carry to another, since municipal service work is broadly similar.
+Or a prior written with no sight of the data might work in place, in which
+case the first prior's apparent skill was knowledge and not memory.
 
 ## Method
 
-**Data.** Public 311 service request feeds from three cities: New York,
-Chicago and Austin. These are real operational records, written by the
-organisations that do the work, with a creation timestamp, a service
-category, a responsible department, an intake channel and a closing
-timestamp. For New York we take two complete calendar weeks, the weeks of 4
-May 2026 (72,230 tickets) and 8 June 2026 (78,308). Chicago and Austin use the
-same two weeks: 18,926 and 20,645 worked tickets for Chicago, 5,968 and 6,029
-for Austin.
+**Data.** Public 311 service request feeds from New York, Chicago and Austin.
+These are real operational records, written by the organisations that do the
+work. Each carries an opening time, a service category, an owning department,
+an intake channel and a closing time. We take two complete calendar weeks from
+each city, the weeks of 4 May and 8 June 2026.
+
+| city | train | test | median resolution |
+| --- | --- | --- | --- |
+| New York | 72,206 | 78,296 | 5.4h |
+| Chicago | 17,291 | 38,671 | 118.0h |
+| Austin | 5,968 | 6,029 | 23.8h |
 
 Tickets still open at the pull date are kept and treated as slow, since all
 are months past any threshold used here. Dropping them removes the slowest
-work and biases the test set.
+work. Chicago closes most of its feed within a second of creation, so those
+informational records are excluded and only worked tickets remain.
 
-**Task.** At ticket creation, predict whether the ticket will take longer than
-the median to resolve. The model sees only what is known when the ticket is
-opened. We train on synthetic records and test on real ones (TSTR), with
-train-on-real (TRTR) as the ceiling. The model is logistic regression on
-one-hot categorical features throughout, so the learner is held constant and
-differences between arms come from the training data.
-
-Recovered skill is the share of the ceiling's advantage over chance that an
-arm reaches: `(arm - 0.5) / (ceiling - 0.5)`.
+**Task.** At ticket opening, predict whether it will take longer than the
+median to resolve. The model sees only what is known at that moment. Logistic
+regression on one-hot categoricals throughout, so the learner is held constant
+and differences between arms come from the training data. Recovered skill is
+the share of the ceiling's advantage over chance that an arm reaches:
+`(arm - 0.5) / (ceiling - 0.5)`.
 
 **The three prior conditions.** The same procedure, under three information
 conditions:
 
-1. *Contaminated, in-distribution.* Rules for New York, which we wrote after
-   reading New York's conditional resolution rates, then evaluated on
-   held-out New York tickets. This is the condition a lab is in when it builds
-   a generator by inspecting a client's data.
-2. *Transferred.* The same New York rules, unmodified, evaluated on Chicago.
+1. *Contaminated, in place.* Rules for New York, which we wrote after reading
+   New York's conditional resolution rates, then evaluated on held-out New
+   York tickets. This is the condition a lab is in when it builds a generator
+   by inspecting a client's data.
+2. *Carried across.* The same New York rules, unmodified, on Chicago.
 3. *Blind, pre-registered.* Rules for Austin, written from Austin's service
-   type and department vocabulary alone. The taxonomy was pulled with the
-   query restricted to category names and row counts. No duration, rate or
+   type and department vocabulary alone. The taxonomy was pulled with the query
+   restricted to category names and row counts. No duration, rate or
    per-category outcome was requested or displayed. The rules were then
-   written, committed to version control with a recorded prediction, and only
-   then evaluated.
+   written, committed with a recorded prediction, and only then evaluated.
 
 The pre-registration is checkable. The rules are commit `8973439` and the
 evaluation is commit `4400226`.
 
-**Fidelity ladder.** We also compare generators at three fidelity orders:
-marginals only, marginals plus pairwise dependence (a Chow-Liu tree, the order
-that PrivBayes, MST and SDV's Column Pair Trends optimise), and the empirical
-joint.
-
 ## Results
 
-### The prior only works where it was written
+### A prior works only where it was written
 
-| rules authored for | evaluated on | had we seen this city's rates | AUC |
-| --- | --- | --- | --- |
-| New York | New York | yes | **0.822** |
-| New York | Chicago | no, rules transferred unchanged | 0.435 |
-| Austin | Austin | **no, pre-registered** | **0.494** |
+| rules written for | evaluated on | had we seen this city's rates | AUC | ceiling | recovered |
+| --- | --- | --- | --- | --- | --- |
+| New York | New York | yes | **0.840** | 0.918 | **81%** |
+| New York | Chicago | no | 0.496 | 0.729 | -2% |
+| Austin | Austin | **no, pre-registered** | **0.494** | 0.886 | -1% |
 
-Against a real-data ceiling of 0.890 in New York, the contaminated prior's
-0.822 recovers 82.6% of the achievable skill. Against Austin's ceiling of
-0.886, the blind prior's 0.494 recovers nothing: the raw figure sits just
-below chance, so the ratio is slightly negative.
+The contaminated prior recovers 81% of the achievable skill in the city it was
+written against. The same procedure recovers nothing anywhere else, and
+nothing at all when the author writes blind.
 
 This is not a coverage failure. The Austin rules fired on 98.9% of tickets,
-producing scores spread from 0.05 to 0.95. Tickets it called slow ran slow 64.3% of the
-time. Tickets it called fast ran slow 66.1% of the time, marginally more. The
-two groups are indistinguishable.
+producing scores spread from 0.05 to 0.95. Tickets they called slow ran slow
+60.1% of the time and tickets they called fast ran slow 52.9% of the time, a
+gap of seven points that does not survive as ranking skill.
 
-The transferred case fails differently. The New York rules score below chance
-on Chicago because they are actively inverted there: the department rules fire
-on 0.0% of Chicago rows because they are New York acronyms, and the keyword list is New
-York housing-stock vocabulary whose Chicago matches run the other way. Rows
-the rules call slow are slow 29.7% of the time, against 52.0% for the rest.
+The carried-across case fails for a visible reason. The department rules match
+0.0% of Chicago rows, being New York acronyms. The keyword list is New York
+housing-stock vocabulary, and in Chicago it points the wrong way: rows it calls
+slow are slow 47.3% of the time against 58.6% for everything else.
 
 ### Why the prior fails, in detail
 
-The Austin prior was built from four claims about the nature of municipal
-work: one person attending once is fast, an inspection that opens a process is
-slow, work needing a crew and materials is slow, and a fixed-cycle routine
-service is fast. Each is plausible, and each is wrong somewhere.
+The Austin prior rests on four claims about the nature of municipal work. One
+person attending once is fast. An inspection that opens a process is slow.
+Work needing a crew and materials is slow. A fixed-cycle routine service is
+fast. Each is plausible, and each is wrong somewhere.
 
 | service type | predicted slow | actually slow |
 | --- | --- | --- |
@@ -126,59 +119,71 @@ safety priority. Compost collection is physically routine, but the ticket
 stays open across the collection cycle. Vehicle abatement is a police matter
 subject to a statutory waiting period. In each case the duration is set by the
 organisation's workflow and its closing conventions, not by the nature of the
-job. That is not something reasoning about the work can recover.
+job. Reasoning about the work cannot recover that.
 
-### Why the in-distribution check is easy to pass
+### Why the in-place check is easy to pass
 
-The fidelity ladder explains it. The headline task is close to a lookup on one
-column. A generator matching marginals and pairwise dependence recovers 100%
-of the achievable skill. The single rule `department is not NYPD` scores
-0.833, against the hand-written prior's 0.822. When the dominant column is
-removed by predicting speed within a service category, the same pairwise
-generator keeps 44% where the empirical joint keeps 97%.
+Two measurements explain why nobody notices. The New York task is close to a
+lookup on one column: the service category alone scores 0.916 against the
+0.918 ceiling, so it carries everything. And the single rule `department is
+not NYPD` scores 0.850, beating the thirty-keyword prior's 0.840.
 
-So the same generator, judged by the same fidelity metric, looks either
-lossless or half-useless depending on which task it is scored against. An
-evaluation that happens to pick the easy framing will certify almost anything.
+A generator ladder makes the same point. Trained on generated New York records
+and scored on real ones:
 
-### A prediction that was wrong
+| generator | AUC | recovered | records that cannot occur |
+| --- | --- | --- | --- |
+| real records (ceiling) | 0.918 | 100% | 0.0% |
+| marginal only | 0.466 | -8% | 70.5% |
+| marginals + pairwise | 0.917 | **100%** | **0.0%** |
+| empirical joint | 0.917 | 100% | 0.0% |
+
+An evaluation on this task will certify almost anything that gets one column
+roughly right.
+
+### Two predictions that were wrong
 
 Before evaluating Austin we recorded a predicted range of 0.60 to 0.72, on the
 reasoning that genuine domain knowledge ought to be worth something even if
 less than a contaminated prior. The observed 0.494 is below that band. The
-prediction was wrong, and the hypothesis holds in a stronger form than
-expected: the contaminated prior's advantage was not mostly memory, it was
-entirely memory.
+prediction was wrong and the hypothesis holds in a stronger form than expected.
+The contaminated prior's advantage was not mostly memory, it was all of it.
 
-A separate pre-registered hypothesis also failed. We expected generated
-records that violate real-world constraints to explain the loss in downstream
-skill. They do not. The pairwise and joint generators both emit 0% impossible
-department and category pairs while differing by 53 points of recovered skill.
-The loss lives in higher-order dependency structure that a validity check
-cannot see.
+A second pre-registered hypothesis also failed. We expected generated records
+violating real-world constraints to explain the loss in downstream skill.
+Marginal-only generation does invent impossible department and category pairs,
+70.5% of its records, and it does lose everything. But the standard bar of
+marginals plus pairwise invents none at all and loses nothing. That is failure
+mode one of the three written down in advance: at the fidelity order that
+matters, there was nothing to measure.
 
 ## Limits
 
 Three cities, one domain, one task family, one model class. Municipal service
-records may be unusually institution-bound, and a domain with genuinely
+records may be unusually institution-bound. A domain with genuinely
 standardised process, such as a regulated industry or a franchise operation,
-could behave differently. That would bound how far the locality claim reaches,
-and it is the first thing we would test next.
+could behave differently, and that is the first thing we would test next.
 
-We wrote all three priors by one procedure. A different author, or a
-practitioner with real municipal operations experience, might produce rules
-that transfer. Nothing here separates the procedure from the person.
+We wrote all three priors by one procedure. A different author, or someone
+with real municipal operations experience, might produce rules that carry.
+Nothing here separates the procedure from the person.
 
-Chicago's feed auto-closes 62% of tickets within a second of creation, so the
-Chicago comparison uses worked tickets only. That filter was decided before
-any arm was scored. New York carries its own artefacts, including one
-department that closes 89.7% of its tickets at exactly midnight, so its recorded
-durations are administrative.
+Chicago's June week ran roughly twice the volume of its May week, so the
+carried-across arm compares two operating conditions as well as two cities.
+Its ceiling of 0.729 is also the lowest of the three, leaving less skill
+available to recover.
 
-The fidelity-order results confirm published work.
+We tried a harder framing, predicting speed within a service category to
+remove the dominant column. Its ceiling is 0.514, too close to chance to
+separate anything, so we report it as a limit and not a result.
+
+New York carries known artefacts, including one department that closes 89.7%
+of its tickets at exactly midnight, so its recorded durations are
+administrative.
+
 That many high-order joints share low-order marginals, and that low-order
-fidelity therefore fails to imply downstream utility, is established. We include it because it explains why the
-contamination goes unnoticed.
+fidelity therefore fails to imply downstream utility, is established. We
+include the ladder because it explains why the contamination goes unnoticed.
 
 Finally, the contamination is irreversible. Having inspected New York and
 Chicago, we can no longer write a blind prior for either. A prior-driven
@@ -188,6 +193,6 @@ has looked.
 ## What it would take to answer the general question
 
 Pre-registration would have to become the default rather than an experiment.
-Rules authored against a taxonomy with outcomes withheld, committed, then
-scored once, is the only procedure here that produced a number worth
-trusting. It cost an afternoon.
+Rules written against a taxonomy with outcomes withheld, committed, then
+scored once, is the only procedure here that produced a number worth trusting.
+It cost an afternoon.

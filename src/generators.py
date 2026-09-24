@@ -16,7 +16,7 @@ import math
 import random
 from collections import Counter, defaultdict
 
-from src.prepare import FEATURES
+FEATURES = ("category", "department", "channel")
 
 
 def _weighted(rng, items, weights, total):
