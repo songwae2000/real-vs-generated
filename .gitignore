@@ -4,5 +4,7 @@ __pycache__/
 data/*.json
 !data/MANIFEST.json
 
-paper/main.pdf
-paper/main.tex
+*.aux
+*.log
+*.out
+*.synctex.gz

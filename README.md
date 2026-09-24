@@ -4,7 +4,9 @@ Can hand-written domain rules replace a client's operational records when
 generating enterprise data? This tests it on 311 service tickets from four
 cities, and the answer turns out to depend on the client.
 
-Written for the TGDC case study, research track. The paper is `paper/paper.md`.
+Written for the TGDC case study, research track. The paper is `main.pdf`, four
+pages, built from `main.tex` at the root, which `scripts/make_paper.py` generates
+from `paper/paper.md`. Overleaf syncs this repository directly.
 
 ## Run it
 
@@ -66,7 +68,7 @@ single, deliberately non-blind prior, and Chicago has none.
 - `src/tickets.py` loads any of the four feeds into one shape.
 - `src/generators.py` is the fidelity ladder: marginal, pairwise, joint.
 - `src/stats.py` is bootstrap intervals and the information ceiling.
-- `scripts/check_paper.py` and `scripts/make_paper.py`.
+- `scripts/check_paper.py`, `scripts/make_paper.py`, `scripts/check_build.py`.
 - `HYPOTHESIS.md` is the hypothesis as fixed before the first experiment ran,
   including the three ways it could fail. One of them happened.
 
@@ -81,5 +83,8 @@ computed from. The feeds are live, so `run_all.py` reports any disagreement
 before printing a figure, and a reviewer whose numbers differ can tell whether
 the data moved or the code did.
 
-`scripts/make_paper.py` generates the LaTeX from `paper/paper.md`, so the
-typeset version cannot drift from the text.
+`scripts/make_paper.py` generates `main.tex` from `paper/paper.md`, so the
+typeset version cannot drift from the text. `scripts/check_build.py` fails if the
+committed PDF is older than the LaTeX, or the LaTeX older than the markdown. It
+exists because the paper once shipped seven commits behind its own source, back
+when the two lived in separate repositories.

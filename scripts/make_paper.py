@@ -1,7 +1,10 @@
 """Builds the LaTeX paper from paper/paper.md, so the two cannot diverge.
 
 paper.md is the source of record and its figures are checked against
-run_all.py's output. This turns it into the main.tex that Overleaf compiles.
+run_all.py's output. This turns it into the main.tex at the repository root,
+which is what Overleaf syncs and compiles. Writing it here rather than into a
+sibling repository is deliberate: the previous arrangement let the committed PDF
+fall seven commits behind its own source without anything noticing.
 
 Usage: python scripts/make_paper.py [output.tex]
 """
@@ -12,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "paper" / "paper.md"
-DEFAULT_OUT = ROOT.parent / "tgdc-research-paper" / "main.tex"
+DEFAULT_OUT = ROOT / "main.tex"
 
 PREAMBLE = r"""\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage[utf8]{inputenc}
