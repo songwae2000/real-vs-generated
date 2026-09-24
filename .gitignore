@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .DS_Store
 data/*.json
+
+paper/main.pdf
+paper/main.tex
