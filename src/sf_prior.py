@@ -60,8 +60,10 @@ SLOW_QUEUE = ("puc sewer", "housing authority", "muni work", "abandoned vehicles
 
 
 def _hit(text, keywords):
-    lowered = (text or "").lower()
-    return any(k in lowered for k in keywords)
+    """Word-boundary match, because "street" contains "tree"."""
+    padded = f" {(text or '').lower().replace('-', ' ')} "
+    return any(f" {k} " in padded or padded.startswith(f" {k} ")
+               or f" {k}s " in padded for k in keywords)
 
 
 def prior_slow_probability(service_type: str, agency: str) -> float:
@@ -88,4 +90,11 @@ def prior_slow_probability(service_type: str, agency: str) -> float:
     return score
 
 
+# AMENDMENT, made before any San Francisco outcome was observed.
+#
+# The first committed version matched keywords as bare substrings, so every
+# "Street ..." type matched the tree-maintenance rule, since "street" contains
+# "tree". That is an implementation error rather than a reasoning one, and
+# evaluating it would have measured the coding rather than the prior. Matching
+# is now on word boundaries. No outcome data was seen between the two commits.
 PREDICTED_RANGE = (0.55, 0.68)
