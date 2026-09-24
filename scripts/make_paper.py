@@ -133,10 +133,6 @@ def convert(markdown):
             out.append(r"\subsection*{" + escape(line[4:]) + "}")
         elif line.startswith("## "):
             out.append(r"\section*{" + escape(line[3:]) + "}")
-            # a reference list is set smaller than the body it supports, which
-            # is both the convention and what keeps this one off a fifth page
-            if line[3:].strip().lower() == "references":
-                out.append(r"\scriptsize")
         elif line.startswith("    ") and line.strip():
             block = []
             while i < len(lines) and (lines[i].startswith("    ") or not lines[i].strip()):
