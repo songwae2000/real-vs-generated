@@ -14,6 +14,8 @@ ticket interval is roughly twenty times too narrow for any claim about how well
 a rule set generalises to work it has not seen. Both are reported.
 """
 
+import collections
+
 import numpy as np
 from sklearn.metrics import roc_auc_score
 
@@ -143,6 +145,18 @@ def permutation_test(values_by_group, groups, y_true, observed,
     lo, hi = np.percentile(null, [2.5, 97.5])
     p = (1 + int(np.sum(null >= observed))) / (1 + len(null))
     return float(np.mean(null)), lo, hi, p
+
+
+def effective_clusters(groups):
+    """Kish effective number of clusters, given how uneven they are.
+
+    A count of categories overstates the evidence when one of them holds a
+    third of the rows. This is the count the cluster bootstrap is really
+    working with, and it is what decides whether an interval from it can be
+    read as a test at all.
+    """
+    sizes = np.array(list(collections.Counter(groups).values()), dtype=float)
+    return float(sizes.sum() ** 2 / np.square(sizes).sum())
 
 
 def versus_chance(lo, hi):

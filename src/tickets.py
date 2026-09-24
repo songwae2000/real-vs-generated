@@ -111,23 +111,31 @@ def median_hours(rows):
     return float(np.median([h for _, h, _ in rows]))
 
 
-def stratified_split(rows, min_per_category=400):
+def category_medians(rows, min_per_category=400):
+    """Per-category median hours, fitted on one window only.
+
+    Returned separately from the split so the training window can supply the
+    thresholds for both windows. Deriving test labels from test medians would
+    let the label see the split it is meant to be evaluated on, which is a leak,
+    and it is not what any other task here does.
+    """
+    by_category = {}
+    for features, hours, _ in rows:
+        by_category.setdefault(features["category"], []).append(hours)
+    kept = {c: float(np.median(h)) for c, h in by_category.items()
+            if len(h) >= min_per_category}
+    return kept, len(by_category)
+
+
+def stratified_split(rows, medians):
     """Labels each ticket against its own category's median, not the city's.
 
     The headline task is close to a lookup: the category alone carries most of
     the signal, and a generator that reproduces one column's relationship to the
     label gets that for free. Labelling within the category makes every category
-    50/50 by construction, so whatever skill is left has to come from the other
-    columns and from how they interact. That is the only task here on which the
-    fidelity ladder can separate pairwise structure from the full joint.
+    roughly even, so whatever skill is left has to come from the other columns
+    and from how they interact.
     """
-    by_category = {}
-    for features, hours, _ in rows:
-        by_category.setdefault(features["category"], []).append(hours)
-
-    medians = {c: float(np.median(h)) for c, h in by_category.items()
-               if len(h) >= min_per_category}
-
     out_features, out_labels = [], []
     for features, hours, still_open in rows:
         threshold = medians.get(features["category"])

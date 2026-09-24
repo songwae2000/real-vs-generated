@@ -136,8 +136,13 @@ def main():
 
         rules = austin_llm if city is cities.AUSTIN else sf_llm
         verdicts = prior_by_category(rules, test_f)
+        # the null shuffles one verdict per category, so the observed arm has
+        # to be scored on that same per-category vector. Passing the per-ticket
+        # AUC would compare two different statistics, and the prior also reads
+        # department, so the two are not equal.
+        observed_by_cat = roc_auc_score(test_y, [verdicts[c] for c in cats])
         p_auc, p_lo, p_hi, pval = stats.permutation_test(verdicts, cats,
-                                                         test_y, auc)
+                                                         test_y, observed_by_cat)
 
         for label, a, lo, hi in (
                 ("blind rules, independent", auc, None, None),
@@ -149,7 +154,7 @@ def main():
         print(f"  {'':<16}permutation test of H0: p {'<' if pval <= 1/2001 else '='} "
               f"{max(pval, 1/2001):.4f}  "
               f"({int(round(pval * 2001)) - 1} of 2,000 shuffles reached "
-              f"{auc:.3f})")
+              f"{observed_by_cat:.3f}, the arm scored per category)")
         print()
 
     print("  H0: the rules carry no information about which category runs slow.")
@@ -201,35 +206,88 @@ def main():
     print("\n  The fourth arm produces the headline 72% and carries no recorded")
     print("  prediction. The first was set before the project had any result.")
 
-    heading("TABLE 5: removing what one department owns, both authors")
+    heading("TABLE 4b: what the prior beats, and what carries it")
+    print(f"  {'city':<16}{'reference':<40}{'AUC':>8}")
+    for city, rules_h, rules_m in ((cities.AUSTIN, austin_human, austin_llm),
+                                   (cities.SF, sf_human, sf_llm)):
+        tr_f, tr_y, te_f, te_y, _ = loaded[city.name]
+        cat_only = roc_auc_score(te_y, stats.conditional_lookup(
+            tr_f, tr_y, te_f, ("category",)))
+        both = ceiling_from_columns(tr_f, tr_y, te_f, te_y)
+        print(f"  {city.name:<16}{'conditional fitted on real data, category only':<40}"
+              f"{cat_only:>8.3f}")
+        print(f"  {city.name:<16}{'conditional on real data, both columns':<40}"
+              f"{both:>8.3f}")
+        print(f"  {city.name:<16}{'blind rules, the model':<40}"
+              f"{observed[(city.name, 'independent')][0]:>8.3f}")
+        print(f"  {city.name:<16}{'blind rules, mine':<40}"
+              f"{observed[(city.name, 'human')][0]:>8.3f}")
+        eff = stats.effective_clusters(categories_of(te_f))
+        print(f"  {city.name:<16}{'categories / effective clusters':<40}"
+              f"{len({f['category'] for f in te_f}):>4} /{eff:>4.1f}")
+        print()
+
+    print("  In San Francisco the blind model prior beats a conditional fitted")
+    print("  on the real data using the category column. Rules written without")
+    print("  seeing an outcome beat a model that saw every outcome, given the")
+    print("  same column. The effective cluster count is what the category")
+    print("  bootstrap is really working with, and it is far below the count of")
+    print("  categories, so those intervals are descriptive and not tests.")
+
+    heading("TABLE 5: removing the highest-volume categories, both cities")
+    for city, prior_h, prior_m, drop_n in ((cities.AUSTIN, austin_human, austin_llm, None),
+                                           (cities.SF, sf_human, sf_llm, 2)):
+        tr_f, tr_y, te_f, te_y, _ = loaded[city.name]
+        counts = {}
+        for f in te_f:
+            counts[f["category"]] = counts.get(f["category"], 0) + 1
+        if drop_n is None:
+            drop = {c for c in counts if c.upper().startswith(ARR)}
+            label = "excluding all ARR categories"
+        else:
+            drop = {c for c, _ in sorted(counts.items(), key=lambda kv: -kv[1])[:drop_n]}
+            label = f"excluding the top {drop_n} categories"
+        keep_f = [f for f in te_f if f["category"] not in drop]
+        keep_y = [y for f, y in zip(te_f, te_y) if f["category"] not in drop]
+        share = 1 - len(keep_f) / len(te_f)
+        print(f"  {city.name}: {label}, {share:.0%} of volume")
+        print(f"    {'subset':<34}{'rules':<10}{'n':>7}{'prior':>8}"
+              f"{'ceiling':>9}{'recovered':>11}")
+        for sub_label, feats, ys in (("all tickets", te_f, te_y),
+                                     (label, keep_f, keep_y)):
+            top = ceiling_from_columns(tr_f, tr_y, feats, ys)
+            for who, prior in (("mine", prior_h), ("the model", prior_m)):
+                a = roc_auc_score(ys, score_prior(prior, feats))
+                print(f"    {sub_label:<34}{who:<10}{len(feats):>7}{a:>8.3f}"
+                      f"{top:>9.3f}{recovered(a, top):>11.0%}")
+        print()
+
+    print("  Austin loses the department whose clock is administrative and the")
+    print("  prior improves. San Francisco loses its two largest categories and")
+    print("  the prior collapses. The same operation, run both ways, because")
+    print("  running it only where it helps is not an analysis.")
+    simple = {}
+    for city, prior in ((cities.SF, sf_llm),):
+        _, _, te_f, te_y, _ = loaded[city.name]
+        counts = {}
+        for f in te_f:
+            counts[f["category"]] = counts.get(f["category"], 0) + 1
+        top2 = {c for c, _ in sorted(counts.items(), key=lambda kv: -kv[1])[:2]}
+        rule = [0.0 if f["category"] in top2 else 1.0 for f in te_f]
+        simple[city.name] = roc_auc_score(te_y, rule)
+        print(f"  A two-line rule, '{' and '.join(sorted(top2))} are fast,")
+        print(f"  everything else slow', scores {simple[city.name]:.3f} in San Francisco")
+        print("  on its own.")
+
+    heading("TABLE 5c: what sits inside those subsets")
     train_f, train_y, test_f, test_y, _ = loaded["Austin"]
     owned = [f["category"].upper().startswith(ARR) for f in test_f]
-    rest_f = [f for f, w in zip(test_f, owned) if not w]
-    rest_y = [y for y, w in zip(test_y, owned) if not w]
-
-    print(f"  {'subset':<40}{'author':<14}{'n':>7}{'prior':>8}"
-          f"{'ceiling':>9}{'recovered':>11}")
-    for author, prior in (("human", austin_human), ("independent", austin_llm)):
-        for label, feats, ys in (("Austin, all tickets", test_f, test_y),
-                                 ("Austin, excluding all ARR categories", rest_f, rest_y)):
-            top = ceiling_from_columns(train_f, train_y, feats, ys)
-            auc = roc_auc_score(ys, score_prior(prior, feats))
-            print(f"  {label:<40}{author:<14}{len(feats):>7}{auc:>8.3f}"
-                  f"{top:>9.3f}{recovered(auc, top):>11.0%}")
-
-    sf_train_f, sf_train_y, sf_test_f, sf_test_y, _ = loaded["San Francisco"]
-    sf_top = ceiling_from_columns(sf_train_f, sf_train_y, sf_test_f, sf_test_y)
-    for author, prior in (("human", sf_human), ("independent", sf_llm)):
-        auc = observed[("San Francisco", author)][0]
-        print(f"  {'San Francisco, all tickets':<40}{author:<14}"
-              f"{len(sf_test_f):>7}{auc:>8.3f}{sf_top:>9.3f}"
-              f"{recovered(auc, sf_top):>11.0%}")
-
     owned_y = [y for y, w in zip(test_y, owned) if w]
-    owned_p = [p for p, w in zip(score_prior(austin_llm, test_f), owned) if w]
-    print(f"\n  ARR is {sum(owned) / len(test_f):.0%} of Austin volume and "
+    print(f"  ARR is {sum(owned) / len(test_f):.0%} of Austin volume and "
           f"{np.mean(owned_y):.0%} of it runs slow.")
-    print(f"  the prior calls it fast: mean predicted {np.mean(owned_p):.2f}")
+    for who, prior in (("mine", austin_human), ("the model", austin_llm)):
+        vals = [p for p, w in zip(score_prior(prior, test_f), owned) if w]
+        print(f"    mean prediction on ARR, {who:<12}{np.mean(vals):>6.2f}")
 
     print("\n  ARR is a department, so this removes fast work it owns as well as")
     print("  slow. The three fastest ARR categories, by slow rate:")
@@ -240,17 +298,19 @@ def main():
     for cat, ys in sorted(by_cat.items(), key=lambda kv: np.mean(kv[1]))[:3]:
         print(f"    {cat:<38}n={len(ys):>5}  slow {np.mean(ys):>5.1%}")
 
-    print("\n  San Francisco has the same failure at a quarter of the scale.")
-    print("  Categories over 2% of volume, by how far the rules underprice them:")
-    sf_priced = prior_by_category(sf_llm, sf_test_f)
+    sf_train_f, sf_train_y, sf_test_f, sf_test_y, _ = loaded["San Francisco"]
+    print("\n  San Francisco categories over 2% of volume, by how far the rules")
+    print("  underprice them:")
     sf_by = {}
     for f, y in zip(sf_test_f, sf_test_y):
         sf_by.setdefault(f["category"], []).append(y)
-    gaps = [(c, len(v) / len(sf_test_f), float(np.mean(v)), sf_priced[c])
+    priced_m = prior_by_category(sf_llm, sf_test_f)
+    priced_h = prior_by_category(sf_human, sf_test_f)
+    gaps = [(c, len(v) / len(sf_test_f), float(np.mean(v)), priced_m[c], priced_h[c])
             for c, v in sf_by.items() if len(v) / len(sf_test_f) > 0.02]
-    for cat, share, slow, priced in sorted(gaps, key=lambda g: g[3] - g[2])[:2]:
-        print(f"    {cat:<38}{share:>5.1%} of volume, slow {slow:>5.1%}, "
-              f"priced {priced:.2f}")
+    print(f"    {'category':<26}{'volume':>8}{'slow':>8}{'model':>8}{'mine':>8}")
+    for cat, share, slow, pm, ph in sorted(gaps, key=lambda g: g[3] - g[2])[:2]:
+        print(f"    {cat:<26}{share:>7.1%}{slow:>8.1%}{pm:>8.2f}{ph:>8.2f}")
 
     heading("TABLE 6: how concentrated each city is, and where the prior misreads it")
     print(f"  {'city':<16}{'categories':>12}{'top 5 share':>13}"
@@ -308,10 +368,15 @@ def main():
 
     heading("TABLE 8: fidelity ladder, trained on generated New York records")
     train_f, train_y, test_f, test_y, _ = loaded["New York"]
-    strat_train_f, strat_train_y = tickets.stratified_split(
-        tickets.load(cities.NYC, "train"))
+    # the thresholds come from train and are applied to test, as everywhere
+    # else here. Fitting them on test would let the label see its own split.
+    ny_train_rows = tickets.load(cities.NYC, "train")
+    medians, total_cats = tickets.category_medians(ny_train_rows)
+    strat_train_f, strat_train_y = tickets.stratified_split(ny_train_rows, medians)
     strat_test_f, strat_test_y = tickets.stratified_split(
-        tickets.load(cities.NYC, "test"))
+        tickets.load(cities.NYC, "test"), medians)
+    print(f"\n  within-category keeps {len(medians)} of {total_cats} New York "
+          f"categories, those with at least 400 training rows")
 
     tasks = (("city median", train_f, train_y, test_f, test_y),
              ("within category", strat_train_f, strat_train_y,
