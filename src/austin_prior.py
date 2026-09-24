@@ -82,3 +82,8 @@ def prior_slow_probability(service_type: str, department: str) -> float:
         score = min(0.95, score + 0.15)
 
     return score
+
+
+# Transcribed from the docstring above, which was committed in 8973439 before
+# any outcome was observed. The band is not new, only machine readable.
+PREDICTED_RANGE = (0.60, 0.72)

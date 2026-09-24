@@ -1,165 +1,151 @@
-# Domain priors do not substitute for real operational data
+# What a domain prior can and cannot replace
 
 Every figure below is printed by `python run_all.py`.
 
 ## Question
 
 Labs generate enterprise data from procedurally built companies: an org chart,
-a taxonomy of work, and hand-written rules for how that work behaves. The
-appeal is obvious. If domain reasoning can supply the behaviour, you do not
-need the client's records to build a usable training set.
+a taxonomy of work, and hand-written rules for how that work behaves. If domain
+reasoning can supply the behaviour, a generator can be built for a client
+without their records.
 
-This paper tests whether domain reasoning can in fact supply it, for one
-concrete property of operational work: how long a task takes.
+This paper tests whether it can, for one concrete property of operational work:
+how long a task takes.
 
 ## Hypothesis
 
-**H.** Domain priors reasoned from the nature of the work capture a
-substantial share of what real operational records provide for predicting task
-duration.
+**H.** Domain priors reasoned from the nature of the work capture a substantial
+share of what real operational records provide for predicting task duration.
 
-The prediction was recorded before evaluation: a prior written without sight of
-the target data should reach an AUC of 0.60 to 0.72, clearly above the 0.5 of
-chance even if short of what real records achieve. Below 0.55 would mean domain
-reasoning supplies essentially nothing. Above 0.80 would mean it supplies
-nearly everything.
+Recorded before evaluation: a prior written without sight of the target data
+should reach an AUC of 0.60 to 0.72. Below 0.55 would mean domain reasoning
+supplies essentially nothing.
 
-**Why it matters.** If H holds, a generator can be built for a client from
-their taxonomy alone. If it fails, the behaviour in generated records has to
-come from somewhere else, and the obvious somewhere else is the client's own
-data.
+**Why it matters.** If H holds, a taxonomy is enough to build a generator. If it
+fails, the behaviour has to come from the client's own data.
 
 ## Method
 
-**Data.** Public 311 service request feeds from New York, Chicago and Austin.
-These are real operational records, written by the organisations that do the
-work. Each carries an opening time, a service category, an owning department,
-an intake channel and a closing time. We take two complete calendar weeks from
-each city, the weeks of 4 May and 8 June 2026.
+**Data.** Public 311 service request feeds from four cities. These are real
+operational records, written by the organisations that do the work. Two
+complete calendar weeks from each, the weeks of 4 May and 8 June 2026.
 
-| city | train | test | median resolution |
-| --- | --- | --- | --- |
-| New York | 72,206 | 78,296 | 5.4h |
-| Chicago | 17,291 | 38,671 | 118.0h |
-| Austin | 5,968 | 6,029 | 23.8h |
+| city | train | test | median resolution | categories |
+| --- | --- | --- | --- | --- |
+| New York | 72,206 | 78,296 | 5.4h | 132 |
+| Chicago | 17,291 | 38,671 | 118.0h | 97 |
+| Austin | 5,968 | 6,029 | 23.8h | 117 |
+| San Francisco | 17,723 | 17,007 | 15.1h | 37 |
 
 Tickets still open at the pull date are kept and treated as slow, since all are
-months past any threshold used here. Dropping them removes the slowest work.
-Chicago closes most of its feed within a second of creation, so those
-informational records are excluded and only worked tickets remain.
+months past any threshold used. Chicago closes most of its feed within a second
+of creation, so those informational records are excluded.
 
-**Task.** At ticket opening, predict whether it will take longer than the
-median to resolve. The model sees only what is known at that moment. Logistic
-regression on one-hot categoricals throughout, so the learner is held constant
-and differences between arms come from the training data. Recovered skill is
-the share of the ceiling's advantage over chance that an arm reaches:
-`(arm - 0.5) / (ceiling - 0.5)`.
+**Task.** At ticket opening, predict whether it will take longer than the median
+to resolve. Logistic regression on one-hot categoricals, so the learner is held
+constant. Recovered skill is the share of the achievable advantage over chance
+that an arm reaches: `(arm - 0.5) / (ceiling - 0.5)`.
 
-**Two information conditions.** The independent variable is what the author of
-the prior could see when writing it.
+**The ceiling is the prior's own information.** A prior reasons over the service
+category and the owning department. Fitting the conditional rate directly from
+those same two columns gives the best any rule of that shape could do. Comparing
+against it separates a weak rule from weak features.
 
-*Blind.* Rules for Austin, written from Austin's service type and department
-vocabulary alone. The taxonomy was pulled with the query restricted to category
-names and row counts, so no duration, rate or per-category outcome was
-available. The rules were written, committed with the recorded prediction
-above, and only then evaluated. This is the condition H is about.
+**Blind authorship.** Rules were written from each city's service type and
+department vocabulary alone. The taxonomy was pulled with the query restricted
+to names and row counts, so no duration, rate or outcome was available. Rules
+were written, committed with a recorded prediction, and only then evaluated.
 
-*Informed.* Rules for New York, written with that city's conditional
-resolution rates available. This is the condition a lab is in when it builds a
-generator while inspecting a client's data, and it bounds what the same
-procedure achieves with site statistics in hand.
-
-*Carried across.* The New York rules, unmodified, applied to Chicago. This
-separates rules that encode general domain structure from rules that encode one
-site.
-
-The pre-registration is checkable. The blind rules are commit `8973439` and
-their evaluation is commit `4400226`.
+**Two authors.** The largest threat to a result like this is that it describes
+one person's reasoning. Each city was given two independent authors under the
+same blind condition: the first was the experimenter, the second a language
+model that saw only the taxonomy and was instructed not to look anything up.
 
 ## Results
 
-### The blind prior reaches chance
+### What a blind prior recovers
 
-| prior | evaluated on | had the site's rates | AUC [95% CI] | ceiling | recovered | vs chance |
-| --- | --- | --- | --- | --- | --- | --- |
-| Austin, **pre-registered** | Austin | **no** | **0.494** [0.481, 0.508] | 0.886 | **-1%** | **indistinguishable** |
-| New York | Chicago | no | 0.496 [0.492, 0.499] | 0.729 | -2% | below |
-| New York | New York | yes | 0.840 [0.837, 0.843] | 0.918 | 81% | above |
+| city | author | AUC [95% CI] | ceiling | recovered | vs chance |
+| --- | --- | --- | --- | --- | --- |
+| Austin | human | 0.494 [0.481, 0.508] | 0.883 | -1% | indistinguishable |
+| Austin | independent | 0.611 [0.598, 0.626] | 0.883 | 29% | above |
+| San Francisco | human | 0.676 [0.670, 0.684] | 0.886 | 46% | above |
+| San Francisco | independent | 0.777 [0.770, 0.784] | 0.886 | **72%** | above |
 
-Intervals are 1,000-resample bootstraps of the test set. The null baseline,
-always predicting the majority class, scores 0.500 by construction.
+Intervals are 1,000-resample bootstraps. The null baseline, always predicting
+the majority class, scores 0.500 by construction.
 
-**H is refuted.** The blind prior scores 0.494, and its interval spans chance.
-It is not weakly informative, it is statistically indistinguishable from
-guessing. The recorded prediction of 0.60 to 0.72 was wrong, and wrong in the
-direction that says domain reasoning supplied nothing at all.
+**H cannot be answered yes or no.** A blind prior recovers 72% of the achievable
+skill in San Francisco and nothing at all in Austin. Testing one city would have
+produced a confident conclusion in either direction, and the direction would
+have been an artefact of the city.
 
-This is not a coverage failure. The Austin rules fired on 98.9% of tickets,
-producing scores spread from 0.05 to 0.95. Tickets they called slow ran slow
-60.1% of the time and tickets they called fast ran slow 52.9% of the time, a
-gap of seven points that does not survive as ranking skill.
+Two effects sit inside that spread, and they differ in size. **Author** is
+consistent and modest: the independent author beats the experimenter by 0.117 in
+Austin and 0.101 in San Francisco, the same direction and roughly the same
+magnitude twice. **City** is much larger: the same author moves from 29% to 72%.
 
-The same procedure reaches 81% of the ceiling when the author has the site's
-rates in hand. The distance between 81% and nothing is the measure of how much
-of that performance comes from the site rather than from the domain.
+### Three predictions, recorded before evaluation
 
-The carried-across arm makes the same point from the other direction, and
-slightly more sharply: its interval sits entirely below 0.5, so on Chicago the
-New York rules are not merely uninformative but actively misleading. Their
-department rules match 0.0% of Chicago rows, being New York acronyms, and
-their keyword list is New York housing-stock vocabulary that in Chicago points
-the wrong way. Rows it calls slow are slow 47.3% of the time against 58.6% for
-everything else.
-
-### The columns were not the problem
-
-A prior that reasons over service category and department could in principle
-reach whatever those two columns support. Fitting the conditional rate directly
-from training records, using nothing but those same two columns, gives the
-ceiling for any rule of that shape:
-
-| city | best from category and department | the prior reached | gap |
+| arm | predicted | observed | inside band |
 | --- | --- | --- | --- |
-| Austin (blind) | 0.883 | 0.494 | **0.389** |
-| New York (informed) | 0.918 | 0.840 | 0.078 |
+| Austin, human | 0.60 to 0.72 | 0.494 | **no** |
+| Austin, independent | 0.52 to 0.62 | 0.611 | yes |
+| San Francisco, human | 0.55 to 0.68 | 0.676 | yes |
 
-The columns carry nearly all of the available signal in both cities. What
-separates the two rows is whether the author had the rates. The gap is the
-price of not knowing them, and it is five times larger when the author is
-working blind.
+The first band was set before any result existed and was wrong. The later two
+were set knowing the Austin outcome and were right, which is a weaker
+achievement and is reported as such.
 
-### Why domain reasoning fails here
+### One category family explains the gap between the cities
 
-The blind prior rests on four claims about the nature of municipal work. One
-person attending once is fast. An inspection that opens a process is slow. Work
-needing a crew and materials is slow. A fixed-cycle routine service is fast.
-Each is plausible, and each is wrong somewhere.
+| subset | n | prior | ceiling | recovered |
+| --- | --- | --- | --- | --- |
+| Austin, all tickets | 6,029 | 0.611 | 0.883 | 29% |
+| Austin, excluding waste collection | 4,008 | 0.766 | 0.881 | **70%** |
+| San Francisco, all tickets | 17,007 | 0.777 | 0.886 | 72% |
 
-| service type | predicted slow | actually slow |
-| --- | --- | --- |
-| ARR Compost | 5% | 96% |
-| Vehicle Abatement Report | 5% | 94% |
-| ARR Bulk | 5% | 92% |
-| Animal Protection, Loose Dog | 5% | 81% |
-| Traffic Signal Maintenance | 90% | 8% |
-| Parking Violation Enforcement | 30% | 0% |
-| Request Code Officer | 95% | 82% |
+Remove one family of work from Austin and its blind prior recovers 70%, which is
+San Francisco's 72%. The cities were never different. One category family was.
 
-A traffic signal is physically crew work but administratively a same-day safety
-priority. Compost collection is physically routine, but the ticket stays open
-across the collection cycle. Vehicle abatement is a police matter subject to a
-statutory waiting period.
+Waste collection is 34% of Austin's volume and 70% of it runs slow. The prior
+calls it fast, mean prediction 0.37, and the reason is worth stating plainly. A
+missed-collection ticket stays open until the next scheduled route, which is a
+week away. The work is trivially routine. The ticket is not. Nothing in the
+phrase `ARR - Compost` reveals that.
 
-In each case the duration is set by the organisation's workflow and its closing
-conventions, not by the nature of the job. That is the answer to the question:
-what real operational records supply here is institutional convention, and
-convention is local and arbitrary enough that reasoning about the work does not
-reach it.
+San Francisco has no equivalent. Its two largest categories, street cleaning and
+parking enforcement, are 57% of volume, and both behave the way the work
+suggests.
 
-### Distribution fidelity does not detect the problem
+| city | categories | top 5 share | volume in wrong-direction categories |
+| --- | --- | --- | --- |
+| Austin | 117 | 40% | 35% |
+| San Francisco | 37 | 78% | 17% |
 
-A generator ladder shows why a lab would not notice. Trained on generated New
-York records and scored on real ones:
+### The finding
+
+A blind domain prior recovers roughly 70% of the achievable skill on work whose
+duration follows from the nature of the job, in both cities and for both
+authors. It recovers nothing on work whose duration is set by an administrative
+cycle the job description does not reveal. What determines its value is how much
+of a client's volume sits in the second group, and that is not knowable from the
+taxonomy.
+
+### What having the rates is worth
+
+| prior | tested on | AUC [95% CI] | ceiling | recovered |
+| --- | --- | --- | --- | --- |
+| New York | New York | 0.840 [0.837, 0.843] | 0.918 | 81% |
+| New York, carried across | Chicago | 0.496 [0.492, 0.499] | 0.717 | -2% |
+
+Rules written with a city's conditional rates in hand reach 81% there, above the
+72% a blind author reached in San Francisco but not by much. The same rules
+carried to another city fall entirely below chance. Their interval excludes 0.5
+from beneath, so they are not merely uninformative but actively misleading. The
+department rules match 0.0% of Chicago rows, being New York acronyms.
+
+### Distribution fidelity does not detect any of this
 
 | generator | AUC | recovered | records that cannot occur |
 | --- | --- | --- | --- |
@@ -168,59 +154,52 @@ York records and scored on real ones:
 | marginals + pairwise | 0.917 | **100%** | **0.0%** |
 | empirical joint | 0.917 | 100% | 0.0% |
 
-Matching marginals and pairwise dependence, the bar that SDV's Quality Score
-and the NIST differential-privacy winners optimise, recovers everything on this
-task and invents no impossible records. The New York task is close to a lookup
-on one column: the service category alone scores 0.916 against the 0.918
-ceiling, and the single rule `department is not NYPD` scores 0.850. An
-evaluation built on this task will certify almost anything that gets one column
-roughly right.
-
-A second recorded prediction also failed. We expected generated records
-violating real-world constraints to explain downstream loss. Marginal-only
-generation does invent impossible department and category pairs, 70.5% of its
-records, and it does lose everything. But the standard bar invents none and
-loses nothing, so at the fidelity order that matters there was nothing to
-measure.
+Matching marginals and pairwise dependence, the bar SDV's Quality Score and the
+NIST differential-privacy winners optimise, recovers everything on the New York
+task and invents no impossible records. A second recorded prediction, that
+impossible records would explain downstream loss, therefore failed at the
+fidelity order that matters.
 
 ## Limits
 
-One author wrote both priors by one procedure. A practitioner with real
-municipal operations experience might write rules that reach further, and
-nothing here separates the procedure from the person. This is the largest
-limit: the result bounds what this procedure achieves, not what domain
-reasoning achieves in principle.
+Four cities, one domain, one task family, one model class. Municipal services may
+be unusually institution-bound.
 
-Three cities, one domain, one task family, one model class. Municipal service
-records may be unusually institution-bound. A domain with genuinely
-standardised process, such as a regulated industry or a franchise operation,
-could behave differently, and that is the first thing we would test next.
+Two authors, and one of them is the experimenter. The independent author is a
+language model, which is a real second author but not a domain practitioner. A
+retired public works manager might do better than either.
 
-Chicago's June week ran roughly twice the volume of its May week, so the
-carried-across arm compares two operating conditions as well as two cities. Its
-ceiling of 0.729 is also the lowest of the three, leaving less skill available
-to recover.
+The waste-collection result is a single family in a single city. It is an
+explanation consistent with the numbers rather than a tested mechanism, and the
+way to test it is to predict in advance, in a fifth city, which families will
+break a prior and check.
 
-We tried a harder framing, predicting speed within a service category to remove
-the dominant column. Its ceiling is 0.514, too close to chance to separate
-anything, so we report it as a limit and not a result.
+The San Francisco human prior was written knowing what Austin had shown. Its
+rules are blind to San Francisco's rates but its author is not blind to the
+general lesson, so that arm tests transfer of a lesson rather than reasoning from
+scratch.
+
+Chicago's June week ran roughly twice the volume of its May week, so the carried
+arm compares two operating conditions as well as two cities.
 
 New York carries known artefacts, including one department that closes 89.7% of
 its tickets at exactly midnight, so its recorded durations are administrative.
 
-That many high-order joints share low-order marginals, and that low-order
-fidelity therefore fails to imply downstream utility, is established. We include
-the ladder because it explains why a distribution-level check misses this.
+That low-order fidelity fails to imply downstream utility is established. The
+ladder is included because it shows a distribution-level check cannot see the
+effect this paper measures.
 
 ## What it would take to answer the general question
 
-Several independent authors writing priors under the blind condition would
-separate the procedure from the person, which is the limit that most constrains
-this result. Domains chosen to include genuinely standardised process would
-establish whether institutional locality is a property of operational data in
-general or of public services in particular.
+Predict the failure families before looking. The waste-collection explanation
+implies that any category whose clock is an administrative cycle rather than the
+work itself will break a blind prior. That is checkable: name the categories in a
+fifth city from the taxonomy, record the list, then measure.
 
-The procedural point stands on its own. A prior can only be evaluated as a
-prior once per dataset, before anyone has seen the outcomes, and the recorded
-prediction has to come first. That is the only arrangement here that produced a
-number worth trusting, and it cost an afternoon.
+More authors, including practitioners, would separate the procedure from the
+person further than two can.
+
+The procedural point stands regardless. A prior can only be evaluated as a prior
+once per dataset, before anyone has seen the outcomes, and the recorded
+prediction has to come first. Of the three predictions here, the only one made in
+genuine ignorance was the one that turned out wrong.

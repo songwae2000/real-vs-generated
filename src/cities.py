@@ -47,4 +47,11 @@ AUSTIN = City(
     created="sr_created_date", closed="sr_closed_date",
 )
 
-ALL = (NYC, CHICAGO, AUSTIN)
+SF = City(
+    name="San Francisco",
+    endpoint="https://data.sf.gov/resource/vw6y-z8j6.json",
+    category="service_name", department="agency_responsible", channel="source",
+    created="requested_datetime", closed="closed_date",
+)
+
+ALL = (NYC, CHICAGO, AUSTIN, SF)
