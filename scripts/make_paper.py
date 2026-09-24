@@ -18,7 +18,7 @@ PREAMBLE = r"""\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[british]{babel}
-\usepackage[margin=1.8cm]{geometry}
+\usepackage[margin=1.5cm]{geometry}
 \setlength{\columnsep}{0.8cm}
 \setcounter{topnumber}{3}
 \setcounter{totalnumber}{4}
@@ -29,9 +29,9 @@ PREAMBLE = r"""\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage{microtype}
 \usepackage{titlesec}
 \usepackage[hidelinks]{hyperref}
-\titlespacing*{\section}{0pt}{1.0em}{0.35em}
-\titlespacing*{\subsection}{0pt}{0.8em}{0.25em}
-\setlength{\parskip}{0.35em}
+\titlespacing*{\section}{0pt}{0.75em}{0.3em}
+\titlespacing*{\subsection}{0pt}{0.6em}{0.2em}
+\setlength{\parskip}{0.28em}
 \setlength{\parindent}{0pt}
 \title{\vspace{-1.0em}\textbf{%s}\vspace{-0.4em}}
 \author{\textbf{Cajetan Songwae} \\

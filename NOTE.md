@@ -11,82 +11,68 @@ client's data from a taxonomy and hand-written rules, how much of the behaviour
 do the rules supply, and how much has to come from their records? Behaviour here
 is one property, how long a task takes.
 
-**Why 311 feeds.** Public, free, no key, and structurally a field-service queue:
+**Why 311 feeds.** Public, free, no key, and structurally a field service queue:
 work type, owning team, intake channel, open and close timestamps. Four cities,
-two complete calendar weeks each. Austin and San Francisco carry the blind rule
-sets. New York is the contrast, with rules written against its own rates, and
-Chicago is where those rules are carried to see what survives.
+two complete weeks each. Austin and San Francisco carry the blind rules, New York
+is the contrast written against its own rates, Chicago is where those are carried.
 
-**The protocol.** I pulled each city's service catalogue requesting only category
-names and row counts, so no duration or outcome was available to write against.
-Rules were written from that alone, committed with a recorded prediction, and
-only then evaluated. Austin and San Francisco each have two such rule sets, one
-mine and one written by a language model given the same catalogue, because the
-first version of this
-work had a single author and the result turned out to be about me as much as
-about the method. A language model is a second author, not a second practitioner.
+**The protocol.** I pulled each catalogue requesting only category names and row
+counts, so no duration or outcome was available to write against. Rules were
+committed with a recorded prediction, then evaluated. Austin and San Francisco
+have two rule sets each, mine and a language model's, because the first version
+of this work had a single author and the result turned out to be about me as
+much as about the method.
 
 ## Results
 
-Each rule set reasons over two columns, the service category and the owning
-department. Fitting the conditional rate directly from those two columns gives
-the ceiling. The ceiling beats chance by some margin, and recovered skill is the
-share of that margin a rule set reaches. Below zero is worse than chance.
+Recovered skill is the share of the achievable margin over chance a rule set
+reaches, against a ceiling fitted from the same two columns the rules use.
 
 | rule set | Austin | San Francisco |
 | --- | --- | --- |
 | mine | -1% | 46% |
 | model-written | 29% | 72% |
 
-Both sets score far lower in Austin. For the model-written set, removing one
-category family closes almost all of that gap. Austin's waste collection is a third of its volume and runs slow,
-because a missed-collection ticket stays open until the next scheduled route. The
-work is routine. The ticket is not, and nothing in the phrase `ARR - Compost`
-says so.
+Both sets score far lower in Austin, and one department accounts for most of it.
+Austin Resource Recovery is a third of the volume and 70% of its work runs slow,
+because a missed collection stays open until the next scheduled route. Remove it
+and the model-written set reaches 70% against San Francisco's 72%, mine 38%
+against 46%. The work is routine. The ticket is not.
 
 So the question cannot be answered yes or no. Blind rules hold where duration
 follows from the job and fail where the clock is an administrative cycle, and
-which of those a client has is not visible in their taxonomy.
+which a client has is not visible in their taxonomy.
 
-Three of the four blind rule sets carry a prediction recorded before that set was
-scored. The first, for my own Austin rules, was written when the project had no
-results at all, and it missed by a wide margin. The other two were recorded once
-Austin had been scored, so I already knew roughly what to expect. The San
-Francisco model-written set, the one that produces the 72%, carries no recorded
-prediction. The single prediction made in genuine ignorance is the one that
-failed.
+Two controls say how much of that is reasoning. Shuffling the same rules'
+verdicts across categories, which holds the taxonomy and row counts and destroys
+only the reasoning, scores 0.501. Scoring by row count alone reaches 0.672
+against my 0.676, so my own rules add almost nothing beyond volume.
+
+Of four blind rule sets, three carry a prediction recorded before scoring. The
+one producing the headline 72% does not. The only prediction made in genuine
+ignorance is the one that failed.
 
 ## Limits
 
-The ones that would change the result.
+Three cost me a finding. Resampling categories rather than tickets, which is the
+unit the rules are constant within, widens the headline interval to roughly 7% to
+93% and leaves Austin's model-written set indistinguishable from chance. The
+author effect, 0.116 and 0.101 in the same direction twice, crosses zero on that
+unit. And the Chicago transfer failure was mostly a 22-fold threshold gap: held
+at New York's own threshold the carried rules reach 37%, not the -2% I first
+reported.
 
-The paper's intervals resample individual tickets. The rules are functions of
-category, so the honest unit is the category, and San Francisco has 37 of them.
-Resampling categories instead, 2,000 draws with the ceiling held fixed, widens
-the headline interval to roughly 7% to 93% recovered, and the endpoints move a
-point or two with the seed. Austin's model-written set stops being
-distinguishable from chance. The paper reports intervals far too narrow for the claims built on them.
-
-The catalogue pull gave both authors category names and row counts, and row
-counts are real operational data. Scoring tickets by category frequency alone
-reaches AUC 0.672 in San Francisco, against 0.676 for the rules I wrote. Mine add
-almost nothing beyond volume.
-
-The model-written rules are the stronger set everywhere, and these feeds are
-among the most widely mirrored public datasets in existence. Blind here means the
-session showed the model no durations. It does not mean the weights hold none.
-
-The waste-collection explanation rests on a subset chosen after seeing the gap.
-It fits the numbers and nothing has tested it.
+The row counts the pull supplied are themselves real operational data. The
+language model cannot be blind to feeds this widely mirrored, and no prompt or
+version was recorded, so that arm cannot be rerun. The ARR result is a subset
+chosen after seeing the gap.
 
 ## Next step
 
 Make the rules generate. Sample rows from the taxonomy and volume counts, label
-them with the rules, train on that and test on real records, with train-on-real
-as the ceiling. That turns "the rules reach 72% of the achievable margin" into
-the number the question asks for: how much of the training value of real records
-does a generator built without them deliver?
+them with the rules, train on that and test on real records. That turns a share
+of achievable margin into the number the question asks for: how much of the
+training value of real records does a generator built without them deliver?
 
-Then the falsification the mechanism implies. Name in advance, from the taxonomy
-alone, which families in a fifth city have administrative clocks. Record the
-list. Then measure.
+Then name, from a fifth city's taxonomy alone and in advance, which families have
+administrative clocks. Record the list. Then measure.
