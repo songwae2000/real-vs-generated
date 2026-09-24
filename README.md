@@ -11,22 +11,38 @@ Written for the TGDC case study, research track. The paper is `paper/paper.md`.
     python run_all.py
 
 Four public 311 feeds, no key, no account, no cost. numpy and scikit-learn are
-the only dependencies. The first run downloads about 60MB and takes a few
-minutes, most of it bootstrap resampling. Later runs read from disk.
+the only dependencies. The first run downloads about 60MB. Later runs read from
+disk and take under two minutes, most of it bootstrap resampling.
 
-It prints the six tables the paper quotes, in order.
+It prints every table the paper quotes, in order.
 
 ## The result
 
-A prior written blind, from a city's service catalogue alone, recovers 72% of
-the achievable skill in San Francisco and nothing at all in Austin. One
-category family accounts for the whole gap: Austin's waste collection is a
-third of its volume and runs slow, because a missed-collection ticket stays
-open until the next scheduled route. The work is routine. The ticket is not.
+Priors written blind, from a city's service catalogue alone, recover this much
+of the achievable skill:
 
-So a blind prior works on work whose duration follows from the job, and fails
-on work whose clock is an administrative cycle. Which of those a client has is
-not visible in their taxonomy.
+| author | Austin | San Francisco |
+| --- | --- | --- |
+| the experimenter | -1% | 46% |
+| an independent author | 29% | 72% |
+
+Both authors score far lower in Austin, and one department's work accounts for
+most of the gap. Austin Resource Recovery is a third of the city's volume and
+70% of its work runs slow, because a missed collection stays open until the next
+scheduled route. The work is routine. The ticket is not.
+
+So a blind prior works on work whose duration follows from the job, and fails on
+work whose clock is an administrative cycle. Which of those a client has is not
+visible in their taxonomy.
+
+Two controls decide how much of that is reasoning. Shuffling the same rules'
+verdicts across categories, which holds the taxonomy and the row counts and
+destroys only the reasoning, scores 0.501: the reasoning is doing the work.
+Scoring by category row count alone reaches 0.672 in San Francisco against the
+experimenter's 0.676, so that arm adds almost nothing beyond volume.
+
+Intervals resampled by category rather than by ticket are wide. The 72% spans
+roughly 7% to 93%, and the author effect crosses zero in both cities.
 
 ## How blindness was enforced
 
@@ -34,8 +50,12 @@ Each city's taxonomy was pulled with the query restricted to category names and
 row counts, so no duration, rate or outcome was available to the author. Rules
 were written, committed with a recorded prediction, and only then evaluated.
 
-Each city has two independent authors under that condition, because the first
-draft of this work had one and the result turned out to be partly about him.
+Austin and San Francisco each have two authors under that condition, because the
+first draft of this work had one and the result turned out to be partly about
+him. The second author is a language model, which is disclosed in the paper and
+is the design's largest uncontrolled channel: these feeds are widely mirrored,
+so blind means it was shown no durations, not that it holds none. New York has a
+single, deliberately non-blind prior, and Chicago has none.
 
 ## Layout
 

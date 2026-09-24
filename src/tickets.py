@@ -109,3 +109,32 @@ def split(rows, threshold):
 
 def median_hours(rows):
     return float(np.median([h for _, h, _ in rows]))
+
+
+def stratified_split(rows, min_per_category=400):
+    """Labels each ticket against its own category's median, not the city's.
+
+    The headline task is close to a lookup: the category alone carries most of
+    the signal, and a generator that reproduces one column's relationship to the
+    label gets that for free. Labelling within the category makes every category
+    50/50 by construction, so whatever skill is left has to come from the other
+    columns and from how they interact. That is the only task here on which the
+    fidelity ladder can separate pairwise structure from the full joint.
+    """
+    by_category = {}
+    for features, hours, _ in rows:
+        by_category.setdefault(features["category"], []).append(hours)
+
+    medians = {c: float(np.median(h)) for c, h in by_category.items()
+               if len(h) >= min_per_category}
+
+    out_features, out_labels = [], []
+    for features, hours, still_open in rows:
+        threshold = medians.get(features["category"])
+        if threshold is None:
+            continue
+        if still_open and hours <= threshold:
+            continue
+        out_features.append(features)
+        out_labels.append(hours > threshold)
+    return out_features, out_labels

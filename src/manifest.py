@@ -51,8 +51,16 @@ def check():
         if got is None:
             notes.append(f"{key}: missing locally")
         elif got["sha256"] != want["sha256"]:
-            notes.append(f"{key}: {want['rows']} rows in the paper, "
-                         f"{got['rows']} rows here")
+            # the branch is on content, so say which kind of difference it is.
+            # Identical row counts with a different hash means the feed
+            # backfilled a field in place, which moves figures in the third
+            # decimal without changing what was pulled.
+            if got["rows"] == want["rows"]:
+                notes.append(f"{key}: same {want['rows']} rows, but the file "
+                             f"contents changed, so a field was edited in place")
+            else:
+                notes.append(f"{key}: {want['rows']} rows in the paper, "
+                             f"{got['rows']} rows here")
     return notes
 
 

@@ -63,7 +63,8 @@ def escape(text):
 
     text = re.sub(r"`([^`]+)`",
                   lambda m: r"\texttt{" + m.group(1).replace("_", r"\_") + "}", text)
-    return re.sub(r"\*\*([^*]+)\*\*", r"\\textbf{\1}", text)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\\textbf{\1}", text)
+    return re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"\\textit{\1}", text)
 
 
 def table(rows, caption=None):
@@ -103,8 +104,23 @@ def table(rows, caption=None):
     return [line for line in out if line]
 
 
+def unwrap_emphasis(markdown):
+    """Pulls bold and italic runs onto one line.
+
+    escape() works a line at a time, so a marker pair split across a line break
+    never reaches it as a pair. Collapsing the run here keeps that conversion in
+    markdown, before any LaTeX command exists for a stray asterisk to pair with.
+    """
+    def flatten(match):
+        marker = "**" if match.group(0).startswith("**") else "*"
+        return marker + " ".join(match.group(1).split()) + marker
+
+    markdown = re.sub(r"\*\*([^*]+?)\*\*", flatten, markdown, flags=re.DOTALL)
+    return re.sub(r"(?<!\*)\*([^*]+?)\*(?!\*)", flatten, markdown, flags=re.DOTALL)
+
+
 def convert(markdown):
-    lines = markdown.splitlines()
+    lines = unwrap_emphasis(markdown).splitlines()
     title = lines[0].lstrip("# ").strip()
 
     out, i, pending_caption = [], 1, None
