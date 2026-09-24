@@ -7,5 +7,7 @@ The typeset version lives in its own repository so Overleaf can sync it with
 
     https://github.com/songwae2000/tgdc-research-paper
 
-`OUTLINE.md` is the structure the paper was built from, kept because it records
-what the argument was before the numbers came in.
+`HYPOTHESIS.md` at the repository root is the hypothesis as fixed before the
+first experiment ran. The paper tests a narrower question than that file states,
+and the paper says so: the first recorded prediction failed for a structural
+reason, and the work moved to what survived it.
