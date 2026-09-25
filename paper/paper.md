@@ -1,5 +1,7 @@
 # What a domain prior can and cannot replace
 
+## Abstract
+
 Whether hand-written rules can stand in for a client's operational records when generating enterprise data is tested here on 311 tickets from four cities. Blind rules clear a structural null in San Francisco (p 0.0015) and
 not in Austin (p 0.110), and a conditional fitted on the real data exceeds them
 in both. Two cheaper references carry most of the signal: category volume alone scores 0.672 against 0.676 for the author-written rules, and a city's published service target recovers 79% of the achievable margin with no records at all. An agent benchmark built on generated tickets therefore tests a much weaker problem than it appears to.
